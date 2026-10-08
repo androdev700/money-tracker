@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Summary } from '../lib/api';
-import { dayLabel, rupees } from '../lib/format';
+import { dayLabel, rupeesWhole } from '../lib/format';
 
 /** Spend per day of the month; hover or tap a bar for the exact figure. */
 export function DailyBars({ summary }: { summary: Summary }) {
@@ -23,7 +23,7 @@ export function DailyBars({ summary }: { summary: Summary }) {
         <span>Daily spend</span>
         {day && (
           <span className="text-ink">
-            {dayLabel(day)} · <span className="font-medium">{rupees(values[active!])}</span>
+            {dayLabel(day)} · <span className="font-medium">{rupeesWhole(values[active!])}</span>
           </span>
         )}
       </div>

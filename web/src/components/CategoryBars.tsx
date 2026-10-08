@@ -1,5 +1,5 @@
 import type { Summary } from '../lib/api';
-import { capitalise, rupees } from '../lib/format';
+import { capitalise, rupees, rupeesWhole } from '../lib/format';
 
 /** One series (spend) across categories: a single hue, sorted, every bar direct-labelled. */
 export function CategoryBars({ summary, selected, onSelect }: { summary: Summary; selected: number | 'none' | null; onSelect: (id: number | 'none' | null) => void }) {
@@ -25,9 +25,9 @@ export function CategoryBars({ summary, selected, onSelect }: { summary: Summary
             >
               <div className="mb-1.5 flex items-baseline gap-2 text-sm">
                 <span aria-hidden>{r.icon ?? '❔'}</span>
-                <span className="font-medium">{capitalise(r.name) || 'Uncategorised'}</span>
+                <span className="truncate font-medium">{capitalise(r.name) || 'Uncategorised'}</span>
                 <span className="text-xs text-muted">{Math.round((r.total / positive) * 100)}%</span>
-                <span className="ml-auto font-medium">{rupees(r.total)}</span>
+                <span className="ml-auto font-medium">{rupeesWhole(r.total)}</span>
               </div>
               <div className="h-2 rounded-full bg-sunken">
                 <div className="h-2 rounded-full bg-accent" style={{ width: `${Math.max(2, (r.total / max) * 100)}%` }} />

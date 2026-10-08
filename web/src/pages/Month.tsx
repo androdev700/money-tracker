@@ -3,7 +3,7 @@ import { DailyBars } from '../components/DailyBars';
 import { MonthSwitcher } from '../components/MonthSwitcher';
 import { TxnList } from '../components/TxnList';
 import type { Summary, Txn } from '../lib/api';
-import { capitalise, currentMonth, rupees } from '../lib/format';
+import { capitalise, currentMonth, rupeesWhole } from '../lib/format';
 import { useApi, useStore } from '../lib/store';
 
 export function MonthPage() {
@@ -32,12 +32,12 @@ export function MonthPage() {
 
       <section className="text-center">
         <p className="text-sm text-muted">Spent</p>
-        <p className="text-5xl font-semibold tracking-tight">{summary ? rupees(summary.total) : '—'}</p>
+        <p className="text-[clamp(2.25rem,12vw,3rem)] leading-tight font-semibold tracking-tight">{summary ? rupeesWhole(summary.total) : '—'}</p>
         {summary && (
           <p className="mt-1 text-sm text-ink-2">
             {delta === null
               ? 'No spends last month to compare'
-              : `${delta >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(delta * 100))}% vs ${summary.prevToDate !== null ? 'this point last month' : 'last month'} (${rupees(base)})`}
+              : `${delta >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(delta * 100))}% vs ${summary.prevToDate !== null ? 'this point last month' : 'last month'} (${rupeesWhole(base)})`}
           </p>
         )}
       </section>
@@ -52,7 +52,7 @@ export function MonthPage() {
         </button>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_1.1fr] lg:items-start">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-start">
         <div className="flex flex-col gap-5">
           {summary && (
             <section className="rounded-2xl bg-card p-4">

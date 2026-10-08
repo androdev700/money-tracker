@@ -2,6 +2,10 @@ const inr = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2, minimumFr
 
 export const rupees = (paise: number) => `₹${inr.format(paise / 100)}`;
 
+const inrWhole = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
+/** For totals, where paise are noise. */
+export const rupeesWhole = (paise: number) => `₹${inrWhole.format(Math.round(paise / 100))}`;
+
 export const rupeesShort = (paise: number) => {
   const r = paise / 100;
   if (r >= 1e5) return `₹${(r / 1e5).toFixed(r >= 1e6 ? 0 : 1)}L`;
