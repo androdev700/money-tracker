@@ -162,3 +162,39 @@ describe('categories', () => {
     expect(res.statusCode).toBe(409);
   });
 });
+
+describe('receipts vs bank alerts', () => {
+  it('counts a gateway receipt and its card alert once, hours apart, and collapses repeated receipts', async () => {
+    const receipt = 'PayU Transaction ID: 1 Rs. 6100.00 Paid to ACME PARTS PRIVATE LIMITED via creditcard on 26 Aug 2026 12:57 PM Bank Reference Number 1234567890123456789012';
+    addEmail('payment-report@payu.in', receipt, '2026-08-26T12:58:00', 'Your Order at ACME PARTS PRIVATE LIMITED is successful');
+    addEmail('payment-report@payu.in', receipt, '2026-08-26T12:59:00', 'Your Order at ACME PARTS PRIVATE LIMITED is successful');
+    addEmail('credit_cards@icici.bank.in', 'Your ICICI Bank Credit Card XX9876 has been used for a transaction of INR 6,100.00 on Aug 26, 2026 at 16:40:00. Info: ACME PARTS.', '2026-08-26T16:41:00');
+    await processPending(db, { useLlm: false });
+    const counted = txns().filter((t) => !t.duplicate_of);
+    expect(counted).toHaveLength(1);
+    expect(counted[0]).toMatchObject({ bank: 'payu', amount_paise: 610000 });
+  });
+
+  it('keeps two different-amount spends separate', async () => {
+    addEmail('no-reply@amazonpay.in', 'Thanks for using Amazon Pay Balance.', '2026-08-29T10:00:00', 'Rs 179.00 was paid on Amazon.in');
+    addEmail('credit_cards@icici.bank.in', 'Your ICICI Bank Credit Card XX9876 has been used for a transaction of INR 180.00 on Aug 29, 2026 at 10:05:00. Info: AMAZON PAY INDIA.', '2026-08-29T10:06:00');
+    await processPending(db, { useLlm: false });
+    expect(txns().filter((t) => !t.duplicate_of)).toHaveLength(2);
+  });
+});
+
+describe('receipt matching by merchant', () => {
+  it('does not merge a receipt with a different merchant’s same-amount spend an hour later', async () => {
+    addEmail('payment-report@payu.in', 'Rs. 500.00 Paid to ACME PARTS PRIVATE LIMITED via creditcard on 05 Oct 2026 5:20 PM', '2026-10-05T17:21:00', 'Your Order at ACME PARTS PRIVATE LIMITED is successful');
+    addEmail('credit_cards@icici.bank.in', 'Your ICICI Bank Credit Card XX9876 has been used for a transaction of INR 500.00 on Oct 05, 2026 at 18:30:00. Info: SWIGGY.', '2026-10-05T18:31:00');
+    await processPending(db, { useLlm: false });
+    expect(txns().filter((t) => !t.duplicate_of)).toHaveLength(2);
+  });
+
+  it('merges a receipt with the same merchant’s alert hours later', async () => {
+    addEmail('no-reply@razorpay.com', '₹450.02 Paid Successfully Method upi someone@ybl Paid On 01 Aug, 2026 11:45:02 AM', '2026-08-01T11:46:00', 'Payment successful for ShopCo');
+    addEmail('alerts@hdfcbank.net', 'Rs.450.02 has been debited from account **4321 to VPA shopco.rzp@icici SHOPCO on 01-08-26. Your UPI transaction reference number is 627800000123.', '2026-08-01T16:00:00');
+    await processPending(db, { useLlm: false });
+    expect(txns().filter((t) => !t.duplicate_of)).toHaveLength(1);
+  });
+});

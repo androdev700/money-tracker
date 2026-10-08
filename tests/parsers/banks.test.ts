@@ -86,3 +86,13 @@ describe('regressions', () => {
     expect(classifyKind(t, ['my (savings']).kind).toBe('excluded');
   });
 });
+
+describe('wallet top-ups vs wallet spends', () => {
+  const base = { direction: 'debit' as const, refund: false, amountPaise: 100, last4: null, instrument: 'WALLET' as const, txnAt: '2026-10-01T10:00:00', refNo: null };
+  it('loading Amazon Pay balance is not a spend', () => {
+    expect(classifyKind({ ...base, merchantRaw: 'Amazon Pay', window: 'Rs 2000 added to your Amazon Pay balance' }, []).kind).toBe('excluded');
+  });
+  it('paying with Amazon Pay balance is a spend', () => {
+    expect(classifyKind({ ...base, merchantRaw: 'Amazon.in', window: 'Rs 197 was paid on Amazon.in. Thanks for using Amazon Pay Balance.' }, []).kind).toBe('spend');
+  });
+});

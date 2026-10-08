@@ -8,7 +8,8 @@ export interface KindResult {
 }
 
 const CC_BILL = /\bcred\b|cred\.club|credit ?card (?:bill|payment|dues)|ccpay|card ?bill|billdesk.*card|\bbbps\b.*card|autopay.*card|towards your .{0,30}credit card|payment received towards/i;
-const WALLET_TOPUP = /add(?:ed)? money|wallet (?:load|top.?up|recharge)|load money|amazon ?pay balance|paytm wallet|mobikwik wallet/i;
+// Loading a wallet moves money, spending from it is the spend. Only the loading wording counts here.
+const WALLET_TOPUP = /add(?:ed)? money|load(?:ed)? money|wallet (?:load|top.?up|recharge)|(?:top.?up|load|add)(?:ed)?\b.{0,25}(?:amazon ?pay|paytm|mobikwik|phonepe) (?:balance|wallet)/i;
 
 export function classifyKind(txn: ParsedTxn, ownAccounts: string[]): KindResult {
   if (txn.direction === 'credit') {

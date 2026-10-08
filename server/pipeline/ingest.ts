@@ -120,6 +120,8 @@ export async function processEmail(db: DB, email: EmailRow, opts: Options): Prom
       last4: t.last4,
       refNo: t.refNo,
       emailId: email.id,
+      bank: parsed.bank,
+      merchantKey: merchant.key,
     });
     const row = { ...values, duplicate_of: duplicateOf === existing?.id ? null : duplicateOf };
     if (existing) {

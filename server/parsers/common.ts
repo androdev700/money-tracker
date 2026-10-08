@@ -1,5 +1,5 @@
 export type Direction = 'debit' | 'credit';
-export type Instrument = 'UPI' | 'CC' | 'DC' | 'ACCOUNT';
+export type Instrument = 'UPI' | 'CC' | 'DC' | 'WALLET' | 'ACCOUNT';
 
 export interface ParsedTxn {
   direction: Direction;
@@ -26,13 +26,24 @@ export type ParseResult =
   | { status: 'ignored'; reason: string }
   | { status: 'unparsed'; reason: string };
 
+const ENTITIES: Record<string, string> = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", rsquo: "'", lsquo: "'", ndash: '-', mdash: '-', rupee: '₹' };
+
+/** Normalise an email body to one line of plain text. Some senders put HTML or raw CSS in the text part. */
 export function cleanText(s: string): string {
-  return s
-    .replace(/&nbsp;| /g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/[​-‍﻿]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  let out = s
+    .replace(/<(style|script|head)[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCharCode(parseInt(n, 16)))
+    .replace(/&([a-z]+);/gi, (m, n) => ENTITIES[n.toLowerCase()] ?? m)
+    .replace(/\u00a0/g, ' ')
+    .replace(/[\u200b-\u200d\ufeff]/g, '');
+  if (/\{[^{}]*:[^{}]*\}/.test(out)) {
+    out = out.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/@import[^;]*;/g, ' ');
+    // Two passes clear one level of nesting (@media { a { … } }).
+    for (let i = 0; i < 2; i++) out = out.replace(/\{[^{}]*\}/g, ' ');
+  }
+  return out.replace(/\s+/g, ' ').trim();
 }
 
 const AMOUNT_RE = /(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d{1,2})?)/gi;
@@ -53,7 +64,7 @@ export function findAmount(text: string): { paise: number; index: number } | nul
 }
 
 const REFUND_RE = /\b(refund(?:ed)?|revers(?:al|ed)|chargeback)\b/i;
-const DEBIT_RE = /\b(debited|spent|used for|thank you for using|sent|paid|purchase|withdrawn|transaction of|transaction amount|amount debited|transaction alert|debit by|has been used|is debited|towards)\b/i;
+const DEBIT_RE = /\b(debited|spent|used for|thank you for using|sent|paid|purchase|withdrawn|transaction of|transaction amount|amount debited|transaction alert|debit by|has been used|is debited|towards|payment of|payment to)\b/i;
 const CREDIT_RE = /\b(credited to your|has been credited|is credited|received|deposited|credit of)\b/i;
 
 export function findDirection(window: string): { direction: Direction; refund: boolean } | null {
@@ -70,12 +81,13 @@ export function findDirection(window: string): { direction: Direction; refund: b
 export function findLast4(window: string): string | null {
   const m =
     window.match(/(?:ending(?: with)?|ending in|card no\.?|a\/c no\.?|acct|account|a\/c|\bac\b|card)\s*(?:no\.?)?\s*[:#]?\s*(?:[x*X]+\s*)?(\d{3,4})\b/i) ??
-    window.match(/\b[xX*]{2,}\s*(\d{3,4})\b/);
+    window.match(/\b[xX*]{2,}[\s-]*(\d{3,4})\b/);
   return m ? m[1] : null;
 }
 
 export function findInstrument(window: string): Instrument {
-  if (/credit card/i.test(window)) return 'CC';
+  if (/amazon pay balance|\bwallet\b|paytm balance/i.test(window)) return 'WALLET';
+  if (/credit ?card|method card/i.test(window)) return 'CC';
   if (/debit card/i.test(window)) return 'DC';
   if (/\bUPI\b|\bVPA\b|[\w.-]+@[a-z]{2,}\b/i.test(window)) return 'UPI';
   return 'ACCOUNT';
@@ -114,12 +126,15 @@ export function findDate(window: string, receivedAt: string): string {
   }
 
   const received = new Date(receivedAt);
-  const t = window.match(/\b([01]?\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?\b/);
+  const t = window.match(/\b([01]?\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?\b(?:\s*([AaPp])\.?[Mm]\b)?/);
+  let hour = t ? Number(t[1]) : 0;
+  if (t?.[4]?.toLowerCase() === 'p' && hour < 12) hour += 12;
+  if (t?.[4]?.toLowerCase() === 'a' && hour === 12) hour = 0;
 
   if (!y || !mo || !d || mo > 12 || d > 31) return toLocalIso(received);
 
   const date = `${y}-${pad(mo)}-${pad(d)}`;
-  if (t) return `${date}T${pad(Number(t[1]))}:${t[2]}:${t[3] ?? '00'}`;
+  if (t) return `${date}T${pad(hour)}:${t[2]}:${t[3] ?? '00'}`;
   // No time in the alert: the receive time is accurate when it's the same day, noon otherwise.
   const recv = toLocalIso(received);
   return recv.startsWith(date) ? recv : `${date}T12:00:00`;
@@ -157,17 +172,29 @@ export interface BankParser {
   id: string;
   matches: (from: string) => boolean;
   merchantPatterns: RegExp[];
+  /** Merchant named only in the subject ("Payment successful for X"). Tried first. */
+  subjectMerchantPatterns?: RegExp[];
+  /** Subjects from this sender that are never a spend (cashback, reminders). */
+  ignoreSubject?: RegExp;
+  /** A merchant/gateway receipt: the same payment usually also has a bank alert. */
+  receipt?: boolean;
 }
 
-const NOT_TXN_SUBJECT = /\b(otp|one time password|statement|e-?statement|offer|reward points|password|login|update your|kyc|newsletter|emi conversion)\b/i;
+const NOT_TXN_SUBJECT = /\b(otp|one time password|statement|e-?statement|offer|reward|cashback|reminder|password|login|update your|payment method|kyc|newsletter|emi conversion)\b/i;
+
+/** Checks that apply to every sender, known or not. Returns the amount when the email is worth parsing. */
+export function preCheck(email: EmailInput): { ignored: string } | { text: string; amount: { paise: number; index: number } } {
+  if (NOT_TXN_SUBJECT.test(email.subject) && !/debited|spent|credited/i.test(email.subject)) return { ignored: 'not a transaction alert' };
+  const text = cleanText(`${email.subject}. ${email.body}`);
+  const amount = findAmount(text);
+  return amount ? { text, amount } : { ignored: 'no amount' };
+}
 
 export function parseWith(bank: BankParser, email: EmailInput): ParseResult {
-  const text = cleanText(`${email.subject}. ${email.body}`);
-  if (NOT_TXN_SUBJECT.test(email.subject) && !/debited|spent|credited/i.test(email.subject))
-    return { status: 'ignored', reason: 'not a transaction alert' };
-
-  const amount = findAmount(text);
-  if (!amount) return { status: 'ignored', reason: 'no amount' };
+  if (bank.ignoreSubject?.test(email.subject)) return { status: 'ignored', reason: 'not a payment' };
+  const pre = preCheck(email);
+  if ('ignored' in pre) return { status: 'ignored', reason: pre.ignored };
+  const { text, amount } = pre;
 
   const { window, offset } = windowAround(text, amount.index);
   // Merchant patterns read from the start of the amount's sentence: "Sent Rs.300 from … to X", "for Rs 1,250 at X".
@@ -182,7 +209,9 @@ export function parseWith(bank: BankParser, email: EmailInput): ParseResult {
       direction: dir.direction,
       refund: dir.refund,
       amountPaise: amount.paise,
-      merchantRaw: firstMatch(window.slice(sentenceStart), [...bank.merchantPatterns, ...GENERIC_MERCHANT_PATTERNS]),
+      merchantRaw:
+        firstMatch(cleanText(email.subject), bank.subjectMerchantPatterns ?? []) ??
+        firstMatch(window.slice(sentenceStart), [...bank.merchantPatterns, ...GENERIC_MERCHANT_PATTERNS]),
       last4: findLast4(window),
       instrument: findInstrument(window),
       txnAt: findDate(window, email.receivedAt),

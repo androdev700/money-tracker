@@ -35,7 +35,7 @@ describe('Ollama fallback', () => {
     vi.stubGlobal('fetch', fakeOllama({ category: 'home' }));
     const db = openDb(':memory:');
     db.prepare(`INSERT INTO emails (id, from_addr, subject, received_at, body_text) VALUES ('m1', 'alerts@hdfcbank.net', 'UPI', '2026-10-03T09:00:00', ?)`).run(
-      'Rs.800.00 has been debited from account **4321 to VPA q123456@ybl GANESH PLUMBING WORKS on 03-10-26. Your UPI transaction reference number is 627800000099.',
+      'Rs.800.00 has been debited from account **4321 to VPA q123456@ybl GANESH WORKS on 03-10-26. Your UPI transaction reference number is 627800000099.',
     );
     await processPending(db, { useLlm: true });
     const t = db.prepare('SELECT t.categorised_by, t.needs_review, c.name FROM transactions t JOIN categories c ON c.id = t.category_id').get();

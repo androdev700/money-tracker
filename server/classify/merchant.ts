@@ -4,7 +4,7 @@ export interface Merchant {
 }
 
 const GATEWAY_PREFIX = /^(?:upi|pos|ecom|vps|vin|pyu|rsp|razorpay|rzp|payu|ccavenue|billdesk|paytm|phonepe|bharatpe|gpay|cashfree|juspay|ipay|ind\*|mps)\s*[*\/:-]\s*/i;
-const LEGAL_SUFFIX = /\b(?:private|privat|priva|pvt|limited|ltd|llp|inc|corp(?:oration)?|technologies|tech|services|solutions|retail|india|ind)\b\.?/gi;
+const LEGAL_SUFFIX = /\b(?:private|privat|priva|pvt|limited|limite|ltd|llp|inc|corp(?:oration)?|technologies|tech|services|solutions|retail|india|ind)\b\.?/gi;
 const VPA = /^([\w.-]+)@([\w.]+)$/;
 
 const titleCase = (s: string) => s.toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase());
@@ -16,7 +16,11 @@ const titleCase = (s: string) => s.toLowerCase().replace(/\b[a-z]/g, (c) => c.to
 export function normaliseMerchant(raw: string | null | undefined): Merchant {
   if (!raw?.trim()) return { name: 'Unknown', key: 'unknown' };
 
-  let s = raw.trim().replace(/^(?:refund|reversal|reversed)\s*(?:from|of|for|by)?\s*/i, '');
+  let s = raw
+    .trim()
+    .replace(/^(?:refund|reversal|reversed)\s*(?:from|of|for|by)?\s*/i, '')
+    .replace(/^VPA\s+/i, '')
+    .replace(/\.(?:co\.in|in|com|net)\b/gi, '');
   let vpa: string | null = null;
 
   // "handle@bank Name" — keep the name when the bank gave one, else fall back to the VPA.
