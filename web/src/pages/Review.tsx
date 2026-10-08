@@ -1,14 +1,20 @@
 import { useState } from 'react';
-import { CategoryChips } from '../components/TxnSheet';
+import { CategoryTile, useCategoryMap } from '../components/CategoryTile';
+import { Section } from '../components/Grouped';
+import { Glyph } from '../components/Icons';
+import { PageHeader } from '../components/PageHeader';
 import { Pill } from '../components/TxnList';
+import { CategoryChips } from '../components/TxnSheet';
 import { api, type EmailRow, type Txn } from '../lib/api';
 import { capitalise, dayLabel, rupees } from '../lib/format';
 import { useApi, useStore } from '../lib/store';
 
 function ReviewCard({ t }: { t: Txn }) {
   const { refresh, openEditor } = useStore();
+  const categories = useCategoryMap();
   const [busy, setBusy] = useState(false);
   const learnable = t.merchant_key !== 'unknown';
+  const guess = t.category_id === null ? undefined : categories.get(t.category_id);
 
   const pick = async (categoryId: number) => {
     setBusy(true);
@@ -17,22 +23,28 @@ function ReviewCard({ t }: { t: Txn }) {
   };
 
   return (
-    <li className={`rounded-2xl bg-card p-4 ${busy ? 'opacity-50' : ''}`}>
-      <button onClick={() => openEditor(t)} className="mb-3 flex w-full items-start justify-between gap-3 text-left">
-        <span className="min-w-0">
-          <span className="block truncate font-medium">{t.merchant}</span>
-          <span className="block text-xs text-muted">
-            {dayLabel(t.txn_at.slice(0, 10))} · {[t.bank?.toUpperCase(), t.instrument].filter(Boolean).join(' ')}
-            {t.category_name && ` · guessed ${capitalise(t.category_name)}`}
+    <li className={`overflow-hidden rounded-xl bg-card transition-opacity ${busy ? 'opacity-50' : ''}`}>
+      <button onClick={() => openEditor(t)} className="cell tap">
+        <CategoryTile icon={t.category_icon} color={guess?.color} />
+        <span className="cell-body">
+          <span className="min-w-0 flex-1">
+            <span className="line-clamp-2 text-headline [overflow-wrap:anywhere]">{t.merchant}</span>
+            <span className="block truncate text-subhead text-label-2">
+              {[dayLabel(t.txn_at.slice(0, 10)), [t.bank?.toUpperCase(), t.instrument].filter(Boolean).join(' '), t.category_name && `Guessed ${capitalise(t.category_name)}`]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+          </span>
+          <span className="flex shrink-0 items-center gap-1.5">
+            {t.kind === 'refund' && <Pill>Refund</Pill>}
+            {rupees(t.amount_paise)}
           </span>
         </span>
-        <span className="flex shrink-0 items-center gap-2 font-medium">
-          {t.kind === 'refund' && <Pill>refund</Pill>}
-          {rupees(t.amount_paise)}
-        </span>
       </button>
-      <CategoryChips value={t.category_id} onChange={pick} size="sm" />
-      {learnable && <p className="mt-2 text-[11px] text-muted">Your pick is remembered for “{t.merchant}”.</p>}
+      <div className="px-4 pt-1 pb-3.5">
+        <CategoryChips value={t.category_id} onChange={pick} size="sm" />
+        {learnable && <p className="mt-2.5 truncate text-footnote text-label-2">Your pick is remembered for “{t.merchant}”</p>}
+      </div>
     </li>
   );
 }
@@ -40,14 +52,16 @@ function ReviewCard({ t }: { t: Txn }) {
 function UnparsedCard({ e }: { e: EmailRow }) {
   const { refresh, openEditor } = useStore();
   return (
-    <li className="rounded-2xl bg-card p-4 text-sm">
-      <p className="font-medium">{e.subject || '(no subject)'}</p>
-      <p className="text-xs text-muted">
-        {e.from_addr} · {dayLabel(e.received_at.slice(0, 10))}
-      </p>
-      <p className="mt-2 line-clamp-3 text-ink-2">{e.snippet}</p>
-      <div className="mt-3 flex gap-4">
-        <button onClick={() => openEditor({ email_id: e.id, txn_at: e.received_at })} className="font-medium text-accent">
+    <li className="overflow-hidden rounded-xl bg-card">
+      <div className="px-4 pt-3 pb-3">
+        <p className="truncate text-headline">{e.subject || '(no subject)'}</p>
+        <p className="truncate text-footnote text-label-2">
+          {e.from_addr} · {dayLabel(e.received_at.slice(0, 10))}
+        </p>
+        {e.snippet && <p className="mt-1.5 line-clamp-3 text-subhead [overflow-wrap:anywhere] text-label-2">{e.snippet}</p>}
+      </div>
+      <div className="hairline-t grid grid-cols-2">
+        <button onClick={() => openEditor({ email_id: e.id, txn_at: e.received_at })} className="tap min-h-11 px-2 text-body font-semibold text-accent-text">
           Add as spend
         </button>
         <button
@@ -55,7 +69,7 @@ function UnparsedCard({ e }: { e: EmailRow }) {
             await api.post(`/api/emails/${encodeURIComponent(e.id)}/dismiss`);
             refresh();
           }}
-          className="text-ink-2"
+          className="tap min-h-11 px-2 text-body text-accent-text shadow-[inset_var(--hairline)_0_0_var(--separator)]"
         >
           Not a spend
         </button>
@@ -71,32 +85,36 @@ export function ReviewPage() {
   const empty = txns?.length === 0 && emails?.length === 0;
 
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-xl font-semibold">Review</h1>
-        <p className="text-sm text-ink-2">Pick a category once and every future spend at that merchant gets it automatically.</p>
+    <>
+      <PageHeader title="Review" />
+      <div className="mx-auto flex max-w-[42rem] flex-col gap-7">
+        <p className="-mt-1 text-subhead text-label-2">Pick a category once and every future spend at that merchant gets it automatically.</p>
+        {empty && (
+          <div className="flex flex-col items-center gap-2 py-16 text-center">
+            <Glyph name="checkCircle" className="size-14 text-label-3" strokeWidth={1.5} />
+            <p className="mt-2 text-title3 font-semibold">All caught up</p>
+            <p className="max-w-[18rem] text-subhead text-label-2">Spends that need a category will show up here.</p>
+          </div>
+        )}
+        {!!txns?.length && (
+          <Section header="Needs a category" aside={txns.length} card={null}>
+            <ul className="flex flex-col gap-3">
+              {txns.map((t) => (
+                <ReviewCard key={t.id} t={t} />
+              ))}
+            </ul>
+          </Section>
+        )}
+        {!!emails?.length && (
+          <Section header="Emails we couldn’t read" aside={emails.length} card={null}>
+            <ul className="flex flex-col gap-3">
+              {emails.map((e) => (
+                <UnparsedCard key={e.id} e={e} />
+              ))}
+            </ul>
+          </Section>
+        )}
       </div>
-      {empty && <p className="py-16 text-center text-muted">All caught up ✓</p>}
-      {!!txns?.length && (
-        <section>
-          <h2 className="mb-2 text-sm font-medium text-ink-2">Needs a category ({txns.length})</h2>
-          <ul className="flex flex-col gap-3">
-            {txns.map((t) => (
-              <ReviewCard key={t.id} t={t} />
-            ))}
-          </ul>
-        </section>
-      )}
-      {!!emails?.length && (
-        <section>
-          <h2 className="mb-2 text-sm font-medium text-ink-2">Emails we couldn’t read ({emails.length})</h2>
-          <ul className="flex flex-col gap-3">
-            {emails.map((e) => (
-              <UnparsedCard key={e.id} e={e} />
-            ))}
-          </ul>
-        </section>
-      )}
-    </div>
+    </>
   );
 }

@@ -8,8 +8,10 @@ export const rupeesWhole = (paise: number) => `₹${inrWhole.format(Math.round(p
 
 export const rupeesShort = (paise: number) => {
   const r = paise / 100;
-  if (r >= 1e5) return `₹${(r / 1e5).toFixed(r >= 1e6 ? 0 : 1)}L`;
-  if (r >= 1e3) return `₹${(r / 1e3).toFixed(r >= 1e4 ? 0 : 1)}k`;
+  const short = (n: number, unit: string) => `₹${Number(n.toFixed(n >= 10 ? 0 : 1))}${unit}`;
+  if (r >= 1e7) return short(r / 1e7, 'Cr');
+  if (r >= 1e5) return short(r / 1e5, 'L');
+  if (r >= 1e3) return short(r / 1e3, 'k');
   return `₹${Math.round(r)}`;
 };
 
