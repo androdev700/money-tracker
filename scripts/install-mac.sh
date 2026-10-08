@@ -43,11 +43,34 @@ fi
 chmod 600 .env
 
 step "launchd service ($LABEL)"
+NEW_PLIST="$(mktemp)"
 sed -e "s#__NODE__#$NODE_BIN#g" -e "s#__APP_DIR__#$APP_DIR#g" -e "s#__LOG_DIR__#$LOG_DIR#g" \
-  scripts/com.money-tracker.plist > "$PLIST"
-launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
-launchctl bootstrap "$DOMAIN" "$PLIST"
-launchctl enable "$DOMAIN/$LABEL"
+  scripts/com.money-tracker.plist > "$NEW_PLIST"
+
+# Over SSH the GUI domain refuses bootstrap/bootout from your shell ("125: Domain does not support
+# specified action"); root may act on it as long as you're logged in on the Mac itself.
+lctl() {
+  launchctl "$@" 2>/dev/null && return 0
+  [[ -n "${SSH_CONNECTION:-}" ]] && sudo launchctl "$@"
+}
+
+if launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1 && cmp -s "$NEW_PLIST" "$PLIST"; then
+  # Same definition already loaded: restarting picks up the new code, no unload needed.
+  lctl kickstart -k "$DOMAIN/$LABEL" || { echo "Could not restart $LABEL."; exit 1; }
+else
+  install -m 644 "$NEW_PLIST" "$PLIST"
+  if launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1; then
+    lctl bootout "$DOMAIN/$LABEL" || true
+    for _ in {1..20}; do launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1 || break; sleep 0.25; done
+  fi
+  if ! lctl bootstrap "$DOMAIN" "$PLIST"; then
+    echo "Could not load $LABEL into $DOMAIN. Make sure you're logged in on the Mac (auto-login, or via"
+    echo "Screen Sharing), then re-run this script — from Terminal on the Mac if SSH keeps failing."
+    exit 1
+  fi
+  lctl enable "$DOMAIN/$LABEL"
+fi
+rm -f "$NEW_PLIST"
 PORT="$(grep -E '^PORT=' .env | cut -d= -f2 || true)"; PORT="${PORT:-4100}"
 for _ in {1..20}; do curl -sf "http://127.0.0.1:$PORT/api/status" >/dev/null && break; sleep 0.5; done
 curl -sf "http://127.0.0.1:$PORT/api/status" >/dev/null && echo "Running on http://127.0.0.1:$PORT (logs: $LOG_DIR/server.log)" \
