@@ -269,6 +269,20 @@ export const fixtures: Fixture[] = [
     expect: { status: 'ignored' },
   },
   {
+    name: 'ICICI standing-instruction advance notice is not a spend',
+    from: 'credit_cards@icici.bank.in',
+    subject: 'Upcoming payment notification: Standing Instructions on your ICICI Bank Credit Card',
+    body: 'Dear Customer, As per the Standing Instruction registered on your ICICI Bank Credit Card XX0001, INR 299.00 will be debited towards YOUTUBEGOOGLE on Oct 26, 2026.',
+    expect: { status: 'ignored' },
+  },
+  {
+    name: 'Advance notice with a neutral subject is caught by its wording',
+    from: 'credit_cards@icici.bank.in',
+    subject: 'Standing Instruction alert',
+    body: 'Dear Customer, INR 299.00 will be debited from your ICICI Bank Credit Card XX0001 on Oct 26, 2026 towards YOUTUBEGOOGLE.',
+    expect: { status: 'ignored' },
+  },
+  {
     name: 'OTP email is ignored',
     from: 'alerts@hdfcbank.net',
     subject: 'OTP for transaction on HDFC Bank Credit Card',

@@ -188,10 +188,12 @@ export interface BankParser {
   ambiguousClock?: boolean;
 }
 
-const NOT_TXN_SUBJECT = /\b(otp|one time password|statement|e-?statement|offer|reward|cashback|reminder|password|login|update your|payment method|kyc|newsletter|emi conversion)\b/i;
+const NOT_TXN_SUBJECT = /\b(otp|one time password|statement|e-?statement|offer|reward|cashback|reminder|upcoming|pre-?debit|password|login|update your|payment method|kyc|newsletter|emi conversion)\b/i;
 
 // "has been declined", "payment failed"; footers say "in case of a failed transaction", which must not match.
 const DECLINED = /\b(?:has been|was|been|is|got)\s+(?:declined|rejected|unsuccessful)\b|\b(?:transaction|payment)\s+(?:has\s+)?(?:failed|declined)\b/i;
+// Advance notice of a standing instruction / mandate; the real debit sends its own alert later.
+const UPCOMING = /\bwill be (?:debited|charged|deducted)\b|\b(?:is|are) (?:due|scheduled) (?:to be|for) (?:debit|deduct|charg)/i;
 const INTEREST = /\bint(?:erest)?\.?\s*(?:pd|paid|credited)\b|\binterest (?:credit|paid|payout)\b/i;
 // Bank senders that only ever send statements, marketing and awareness mail.
 const NON_ALERT_SENDER = /statement|custcomm|mailers?\.|retailproducts|feedback@|newsletter|marketing|promo|offers?@/i;
@@ -217,6 +219,7 @@ export function parseWith(bank: BankParser, email: EmailInput): ParseResult {
   const sentenceStart = dot < 0 ? 0 : dot + 2;
   if (DECLINED.test(window) || DECLINED.test(email.subject)) return { status: 'ignored', reason: 'declined or failed' };
   if (INTEREST.test(window)) return { status: 'ignored', reason: 'interest credit' };
+  if (UPCOMING.test(window)) return { status: 'ignored', reason: 'upcoming payment notice' };
   const dir = findDirection(window);
   if (!dir) return { status: 'unparsed', reason: 'direction unclear' };
 
