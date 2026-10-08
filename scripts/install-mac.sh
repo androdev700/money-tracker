@@ -13,6 +13,11 @@ DOMAIN="gui/$(id -u)"
 
 step() { printf '\n\033[1m▸ %s\033[0m\n' "$*"; }
 
+if [[ $EUID -eq 0 ]]; then
+  echo "Run this without sudo: as root it leaves files you can't update later. It asks for your password if it needs it."
+  exit 1
+fi
+
 command -v brew >/dev/null || { echo "Homebrew is required: https://brew.sh"; exit 1; }
 
 step "Node"
