@@ -1,0 +1,170 @@
+// Representative bank alert emails, reconstructed from the formats each bank sends.
+// Replace or extend with real samples (anonymised) as `npm run parse-report` surfaces misses.
+
+export interface Fixture {
+  name: string;
+  from: string;
+  subject: string;
+  body: string;
+  receivedAt?: string;
+  expect:
+    | { status: 'ignored' | 'unparsed' }
+    | {
+        status: 'parsed';
+        direction: 'debit' | 'credit';
+        refund?: boolean;
+        amountPaise: number;
+        merchant: string;
+        last4: string | null;
+        instrument: 'UPI' | 'CC' | 'DC' | 'ACCOUNT';
+        txnAt: string;
+        refNo?: string | null;
+        kind: 'spend' | 'refund' | 'excluded' | null;
+        category?: string | null;
+      };
+}
+
+const RECEIVED = '2026-10-05T14:25:00';
+
+export const fixtures: Fixture[] = [
+  {
+    name: 'HDFC UPI debit',
+    from: 'HDFC Bank InstaAlerts <alerts@hdfcbank.net>',
+    subject: '❗ You have done a UPI txn. Check details!',
+    body: 'Dear Customer, Rs.450.00 has been debited from account **4321 to VPA swiggy.stores@axb SWIGGY on 05-10-26. Your UPI transaction reference number is 627812345678. If you did not authorize this transaction, please report it immediately by calling 18002586161 Or SMS BLOCK UPI to 7308080808. Warm Regards, HDFC Bank',
+    expect: { status: 'parsed', direction: 'debit', amountPaise: 45000, merchant: 'Swiggy', last4: '4321', instrument: 'UPI', txnAt: '2026-10-05T14:25:00', refNo: '627812345678', kind: 'spend', category: 'food' },
+  },
+  {
+    name: 'HDFC credit card swipe (classic)',
+    from: 'HDFC Bank InstaAlerts <alerts@hdfcbank.net>',
+    subject: 'Alert : Update on your HDFC Bank Credit Card',
+    body: 'Dear Card Member, Thank you for using your HDFC Bank Credit Card ending 1234 for Rs 1,250.00 at AMAZON PAY INDIA PRIVA on 05-10-2026 14:22:11. Authorization code:- 123456 After the above transaction, the available balance on your card is Rs 85,000.00 and the total outstanding is Rs 15,000.00.',
+    expect: { status: 'parsed', direction: 'debit', amountPaise: 125000, merchant: 'Amazon Pay', last4: '1234', instrument: 'CC', txnAt: '2026-10-05T14:22:11', refNo: null, kind: 'spend', category: 'shopping' },
+  },
+  {
+    name: 'HDFC credit card debit (new format)',
+    from: 'HDFC Bank InstaAlerts <alerts@hdfcbank.bank.in>',
+    subject: 'Rs.1250.00 debited via Credit Card **1234',
+    body: 'Dear Customer, Rs.1250.00 is debited from your HDFC Bank Credit Card ending 1234 towards DMART AVENUE SUPERMARTS on 05 Oct, 2026 at 14:22:11. If you did not authorize this transaction, please call on 18002586161.',
+    expect: { status: 'parsed', direction: 'debit', amountPaise: 125000, merchant: 'Dmart Avenue Supermarts', last4: '1234', instrument: 'CC', txnAt: '2026-10-05T14:22:11', kind: 'spend', category: 'groceries' },
+  },
+  {
+    name: 'HDFC debit card at a petrol pump',
+    from: 'alerts@hdfcbank.net',
+    subject: 'Alert : Update on your HDFC Bank Debit Card',
+    body: 'Dear Customer, Thank you for using your HDFC Bank Debit Card ending 5678 for Rs 2,000.00 at HP PAY PETROL PUMP on 06-10-2026 09:10:00.',
+    expect: { status: 'parsed', direction: 'debit', amountPaise: 200000, merchant: 'Hp Pay Petrol Pump', last4: '5678', instrument: 'DC', txnAt: '2026-10-06T09:10:00', kind: 'spend', category: 'fuel' },
+  },
+  {
+    name: 'HDFC UPI money received is not spend',
+    from: 'alerts@hdfcbank.net',
+    subject: 'You have received money',
+    body: 'Dear Customer, Rs.10000.00 has been credited to your account **4321 by VPA friend@okaxis FRIEND NAME on 07-10-26. Your UPI transaction reference number is 628012340000.',
+    expect: { status: 'parsed', direction: 'credit', amountPaise: 1000000, merchant: 'Friend', last4: '4321', instrument: 'UPI', txnAt: '2026-10-07T12:00:00', kind: null },
+  },
+  {
+    name: 'HDFC credit card refund',
+    from: 'alerts@hdfcbank.net',
+    subject: 'Refund credited to your HDFC Bank Credit Card',
+    body: 'Dear Customer, Rs.599.00 has been credited to your HDFC Bank Credit Card ending 1234 towards refund from MYNTRA DESIGNS PVT LTD on 08-10-2026.',
+    expect: { status: 'parsed', direction: 'credit', refund: true, amountPaise: 59900, merchant: 'Myntra Designs', last4: '1234', instrument: 'CC', txnAt: '2026-10-08T12:00:00', kind: 'refund', category: 'shopping' },
+  },
+  {
+    name: 'HDFC UPI to CRED is a card bill payment',
+    from: 'alerts@hdfcbank.net',
+    subject: 'You have done a UPI txn',
+    body: 'Dear Customer, Rs.15000.00 has been debited from account **4321 to VPA cred.club@axisb CRED Club on 09-10-26. Your UPI transaction reference number is 628212345678.',
+    expect: { status: 'parsed', direction: 'debit', amountPaise: 1500000, merchant: 'Cred Club', last4: '4321', instrument: 'UPI', txnAt: '2026-10-09T12:00:00', kind: 'excluded' },
+  },
+  {
+    name: 'HDFC credit card payment received is ignored',
+    from: 'alerts@hdfcbank.net',
+    subject: 'Payment received on your credit card',
+    body: 'Dear Card Member, Payment of Rs. 15,000.00 has been received towards your HDFC Bank Credit Card ending 1234 on 09-10-2026. Thank you.',
+    expect: { status: 'parsed', direction: 'credit', amountPaise: 1500000, merchant: 'Your Hdfc Bank Credit Card Ending', last4: '1234', instrument: 'CC', txnAt: '2026-10-09T12:00:00', kind: null },
+  },
+  {
+    name: 'ICICI credit card',
+    from: 'ICICI Bank <credit_cards@icicibank.com>',
+    subject: 'Transaction alert for your ICICI Bank Credit Card',
+    body: 'Dear Customer, Your ICICI Bank Credit Card XX9876 has been used for a transaction of INR 349.00 on Oct 05, 2026 at 20:15:42. Info: ZOMATO LTD. The Available Credit Limit on your card is INR 1,20,000.00 and Total Credit Limit is INR 2,00,000.00.',
+    expect: { status: 'parsed', direction: 'debit', amountPaise: 34900, merchant: 'Zomato', last4: '9876', instrument: 'CC', txnAt: '2026-10-05T20:15:42', kind: 'spend', category: 'food' },
+  },
+  {
+    name: 'ICICI account UPI debit',
+    from: 'alerts@icicibank.com',
+    subject: 'Transaction alert for your ICICI Bank Account',
+    body: 'Dear Customer, ICICI Bank Account XX123 has been debited with INR 220.00 on 06-Oct-26. Info: UPI/628012345678/BLINKIT COMMERCE PRIVATE LIMITED. The Available Balance is INR 50,000.00.',
+    expect: { status: 'parsed', direction: 'debit', amountPaise: 22000, merchant: 'Blinkit Commerce', last4: '123', instrument: 'UPI', txnAt: '2026-10-06T12:00:00', refNo: '628012345678', kind: 'spend', category: 'groceries' },
+  },
+  {
+    name: 'Axis credit card (sentence)',
+    from: 'Axis Bank Alerts <alerts@axisbank.com>',
+    subject: 'Transaction alert on Axis Bank Credit Card no. XX4455',
+    body: 'Transaction alert on Axis Bank Credit Card no. XX4455 INR 1,800 spent on 07-10-2026 21:05:33 IST at THE BEER CAFE. Available Limit: INR 45,000.',
+    expect: { status: 'parsed', direction: 'debit', amountPaise: 180000, merchant: 'The Beer Cafe', last4: '4455', instrument: 'CC', txnAt: '2026-10-07T21:05:33', kind: 'spend', category: 'drinks' },
+  },
+  {
+    name: 'Axis credit card (table)',
+    from: 'alerts@axisbank.com',
+    subject: 'Transaction alert on Axis Bank Credit Card',
+    body: 'Transaction Amount: INR 650 Merchant Name: UBER INDIA SYSTEMS Axis Bank Credit Card No. XX4455 Date & Time: 07-10-2026, 22:40:10 IST Available Limit*: INR 44,350',
+    expect: { status: 'parsed', direction: 'debit', amountPaise: 65000, merchant: 'Uber Systems', last4: '4455', instrument: 'CC', txnAt: '2026-10-07T22:40:10', kind: 'spend', category: 'personal' },
+  },
+  {
+    name: 'Axis account UPI debit',
+    from: 'alerts@axisbank.com',
+    subject: 'Debit alert',
+    body: 'Dear Customer, INR 500.00 has been debited from A/c no. XX7788 on 07-10-2026 13:00:01 IST at UPI/P2M/628112345678/ZEPTO MARKETPLACE PRIVATE LIMITED. Available balance: INR 12,000.00.',
+    expect: { status: 'parsed', direction: 'debit', amountPaise: 50000, merchant: 'Zepto Marketplace', last4: '7788', instrument: 'UPI', txnAt: '2026-10-07T13:00:01', refNo: '628112345678', kind: 'spend', category: 'groceries' },
+  },
+  {
+    name: 'SBI Card spend',
+    from: 'SBI Card <onlinesbicard@sbicard.com>',
+    subject: 'Transaction Alert from SBI Card',
+    body: 'Dear Cardholder, Rs.2,345.00 spent on your SBI Credit Card ending 3344 at APOLLO PHARMACY on 08/10/26. Trxn. not done by you? Report at https://sbicard.com/Dispute',
+    expect: { status: 'parsed', direction: 'debit', amountPaise: 234500, merchant: 'Apollo Pharmacy', last4: '3344', instrument: 'CC', txnAt: '2026-10-08T12:00:00', kind: 'spend', category: 'health' },
+  },
+  {
+    name: 'SBI UPI debit without currency marker',
+    from: 'cbssbi.cas@alerts.sbi.co.in',
+    subject: 'Alert from SBI',
+    body: 'Dear UPI user A/C X6655 debited by 120.0 on date 08Oct26 trf to INDIAN OIL Refno 628312345678. If not u? call 1800111109. -SBI',
+    expect: { status: 'parsed', direction: 'debit', amountPaise: 12000, merchant: 'Indian Oil', last4: '6655', instrument: 'UPI', txnAt: '2026-10-08T12:00:00', refNo: '628312345678', kind: 'spend', category: 'fuel' },
+  },
+  {
+    name: 'Kotak UPI sent',
+    from: 'BankAlerts@kotak.com',
+    subject: 'Kotak Bank: Money sent',
+    body: 'Sent Rs.300.00 from Kotak Bank AC X2211 to rapido.bike@ybl on 09-10-26.UPI Ref 628412345678. Not you, https://kotak.com/KBANKT/Fraud',
+    expect: { status: 'parsed', direction: 'debit', amountPaise: 30000, merchant: 'Rapido Bike', last4: '2211', instrument: 'UPI', txnAt: '2026-10-09T12:00:00', refNo: '628412345678', kind: 'spend', category: 'personal' },
+  },
+  {
+    name: 'Kotak credit card',
+    from: 'creditcardalerts@kotak.com',
+    subject: 'Transaction alert',
+    body: 'A Transaction of INR 1,250.00 has been made on your Kotak Bank Credit Card No.XX8899 at DECATHLON SPORTS INDIA on 10/10/2026.',
+    expect: { status: 'parsed', direction: 'debit', amountPaise: 125000, merchant: 'Decathlon Sports', last4: '8899', instrument: 'CC', txnAt: '2026-10-10T12:00:00', kind: 'spend', category: 'shopping' },
+  },
+  {
+    name: 'OTP email is ignored',
+    from: 'alerts@hdfcbank.net',
+    subject: 'OTP for transaction on HDFC Bank Credit Card',
+    body: '123456 is the OTP for transaction of INR 2,000.00 at AMAZON on your HDFC Bank card ending 1234. Valid for 10 mins.',
+    expect: { status: 'ignored' },
+  },
+  {
+    name: 'Statement email is ignored',
+    from: 'estatement@icicibank.com',
+    subject: 'Your ICICI Bank Credit Card Statement for September 2026',
+    body: 'Dear Customer, your statement is ready. Total amount due Rs 15,000.00. Minimum amount due Rs 750.00.',
+    expect: { status: 'ignored' },
+  },
+  {
+    name: 'Unknown sender is unparsed',
+    from: 'noreply@somewallet.com',
+    subject: 'Payment successful',
+    body: 'You paid Rs 99 to Netflix.',
+    expect: { status: 'unparsed' },
+  },
+].map((f) => ({ receivedAt: RECEIVED, ...f })) as Fixture[];
