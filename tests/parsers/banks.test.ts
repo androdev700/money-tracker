@@ -60,10 +60,10 @@ describe('own-account transfers', () => {
 describe('merchant normalisation', () => {
   it.each([
     ['VPS*SWIGGY', 'Swiggy', 'swiggy'],
-    ['PYU*Swiggy Food', 'Swiggy Food', 'swiggy food'],
-    ['UPI/P2M/628112345678/ZEPTO MARKETPLACE PRIVATE LIMITED', 'Zepto Marketplace', 'zepto marketplace'],
+    ['PYU*Swiggy Food', 'Swiggy Food', 'swiggyfood'],
+    ['UPI/P2M/628112345678/ZEPTO MARKETPLACE PRIVATE LIMITED', 'Zepto Marketplace', 'zeptomarketplace'],
     ['paytmqr281005050101xyz@paytm', 'UPI paytmqr28100505010', 'paytmqr281005050101xyz@paytm'],
-    ['rapido.bike@ybl', 'Rapido Bike', 'rapido bike'],
+    ['rapido.bike@ybl', 'Rapido Bike', 'rapidobike'],
     ['', 'Unknown', 'unknown'],
   ])('%s → %s', (raw, name, key) => {
     expect(normaliseMerchant(raw)).toEqual({ name, key });

@@ -84,6 +84,9 @@ const SEED_RES: [string, RegExp][] = SEED.map(({ category, prefix, word = [] }) 
   new RegExp(`\\b(?:${prefix.map(term).join('|')})${word.length ? `|\\b(?:${word.map(term).join('|')})\\b` : ''}`, 'i'),
 ]);
 
+/** A rule for "bookmyshow" also covers "bookmyshowpayupg"; shorter keys are too generic to extend. */
+export const MIN_PREFIX_RULE = 6;
+
 type CatRow = { id: number; name: string };
 
 export function categoryIdByName(db: DB): Map<string, number> {
@@ -94,7 +97,11 @@ export function categoryIdByName(db: DB): Map<string, number> {
 /** Rules learned from your edits win, then the built-in keyword map. */
 export function categorise(db: DB, merchantKey: string, haystack: string): CategoryMatch | null {
   const rule = db
-    .prepare('SELECT category_id, display_name FROM merchant_rules WHERE merchant_key = ?')
+    .prepare(
+      `SELECT category_id, display_name FROM merchant_rules
+       WHERE merchant_key = ?1 OR (length(merchant_key) >= ${MIN_PREFIX_RULE} AND substr(?1, 1, length(merchant_key)) = merchant_key)
+       ORDER BY length(merchant_key) DESC LIMIT 1`,
+    )
     .get(merchantKey) as { category_id: number; display_name: string | null } | undefined;
   if (rule) return { categoryId: rule.category_id, by: 'rule', displayName: rule.display_name };
 

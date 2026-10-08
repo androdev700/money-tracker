@@ -198,3 +198,31 @@ describe('receipt matching by merchant', () => {
     expect(txns().filter((t) => !t.duplicate_of)).toHaveLength(1);
   });
 });
+
+describe('learned rules across naming variants', () => {
+  it('a rule for one spelling covers the other and longer variants, but not over a more specific rule', async () => {
+    const icici = (amt: string, info: string, day: string) =>
+      `Your ICICI Bank Credit Card XX9876 has been used for a transaction of INR ${amt} on Sep ${day}, 2026 at 14:00:00. Info: ${info}. The Available Credit Limit on your card is INR 1.00.`;
+    addEmail('credit_cards@icici.bank.in', icici('100.00', 'CUSTOM ELEMENTS', '01'), '2026-09-01T14:01:00');
+    addEmail('credit_cards@icici.bank.in', icici('200.00', 'CUSTOMELEMENTS PVT', '02'), '2026-09-02T14:01:00');
+    addEmail('credit_cards@icici.bank.in', icici('300.00', 'CUSTOMELEMENTS GARAGE', '03'), '2026-09-03T14:01:00');
+    await processPending(db, { useLlm: false });
+    const app = await buildApp(db);
+    const id = (name: string) => (db.prepare('SELECT id FROM categories WHERE name = ?').get(name) as { id: number }).id;
+    const [a, , c] = txns();
+
+    await app.inject({ method: 'PATCH', url: `/api/transactions/${c.id}`, payload: { category_id: id('home'), apply_to_merchant: true } });
+    await app.inject({ method: 'PATCH', url: `/api/transactions/${a.id}`, payload: { category_id: id('vehicle'), apply_to_merchant: true } });
+
+    expect(txns().map((t) => t.category)).toEqual(['vehicle', 'vehicle', 'home']);
+  });
+});
+
+describe('declined then retried', () => {
+  it('counts only the successful retry', async () => {
+    addEmail('credit_cards@icici.bank.in', 'As the transaction amount exceeds the per transaction limit set for contactless transactions, your transaction of INR 1,234.56 using your ICICI Bank Credit Card XX0001, has been declined on Aug 13, 2026 at 03:29:50.', '2026-08-13T15:30:00');
+    addEmail('credit_cards@icici.bank.in', 'Your ICICI Bank Credit Card XX0001 has been used for a transaction of INR 1,234.56 on Aug 13, 2026 at 03:30:40. Info: SAMPLE FUELS. The Available Credit Limit on your card is INR 1.00.', '2026-08-13T15:31:00');
+    await processPending(db, { useLlm: false });
+    expect(txns()).toMatchObject([{ merchant: 'Sample Fuels', category: 'fuel', duplicate_of: null, txn_at: '2026-08-13T15:30:40' }]);
+  });
+});

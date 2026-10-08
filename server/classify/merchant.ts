@@ -20,6 +20,7 @@ export function normaliseMerchant(raw: string | null | undefined): Merchant {
     .trim()
     .replace(/^(?:refund|reversal|reversed)\s*(?:from|of|for|by)?\s*/i, '')
     .replace(/^VPA\s+/i, '')
+    .replace(/\s+(?:with\s+)?standing instruction\b.*$/i, '')
     .replace(/\.(?:co\.in|in|com|net)\b/gi, '');
   let vpa: string | null = null;
 
@@ -57,6 +58,7 @@ export function normaliseMerchant(raw: string | null | undefined): Merchant {
 
   if (!s) return { name: titleCase(raw.slice(0, 40)), key: raw.toLowerCase().slice(0, 60) };
 
-  const key = s.toLowerCase().replace(/[&']/g, '').split(' ').filter(Boolean).slice(0, 3).join(' ');
+  // Spaces dropped so "Custom Elements" and "CUSTOMELEMENTS" share a key; rules also match by key prefix.
+  const key = s.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 40);
   return { name: titleCase(s).slice(0, 60), key: key || 'unknown' };
 }

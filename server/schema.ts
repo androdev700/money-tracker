@@ -75,4 +75,9 @@ export const migrations: string[] = [
     ('personal',  '👤', '#e67700', 8),
     ('drinks',    '🍺', '#862e9c', 9);
   `,
+  // Merchant keys lost their spaces ("custom elements" -> "customelements"); UPI handles never had any.
+  `
+  UPDATE OR REPLACE merchant_rules SET merchant_key = replace(merchant_key, ' ', '') WHERE merchant_key NOT LIKE '%@%';
+  UPDATE transactions SET merchant_key = replace(merchant_key, ' ', '') WHERE merchant_key NOT LIKE '%@%';
+  `,
 ];

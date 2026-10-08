@@ -71,7 +71,7 @@ export function findDirection(window: string): { direction: Direction; refund: b
   // Footers say things like "failed transactions are reversed in 2 days"; an explicit debit verb wins over that.
   if (REFUND_RE.test(window) && !/\b(debited|spent|sent|withdrawn|thank you for using|has been used)\b/i.test(window))
     return { direction: 'credit', refund: true };
-  if (/\bcredited to your\b|\bhas been credited to\b|\bis credited (?:with|by)\b|\breceived (?:in|from|towards)\b/i.test(window))
+  if (/\bcredited to your\b|\b(?:has been|is) credited (?:to|with|by)\b|\breceived (?:in|from|towards)\b|\b(?:we have )?received (?:a |your )?payment\b|\bpayment (?:has been |is )?received\b/i.test(window))
     return { direction: 'credit', refund: false };
   if (DEBIT_RE.test(window)) return { direction: 'debit', refund: false };
   if (CREDIT_RE.test(window)) return { direction: 'credit', refund: false };
@@ -80,6 +80,7 @@ export function findDirection(window: string): { direction: Direction; refund: b
 
 export function findLast4(window: string): string | null {
   const m =
+    window.match(/\b\d{4}[\s-]*[xX*]{4}[\s-]*[xX*]{4}[\s-]*(\d{4})\b/) ??
     window.match(/(?:ending(?: with)?|ending in|card no\.?|a\/c no\.?|acct|account|a\/c|\bac\b|card)\s*(?:no\.?)?\s*[:#]?\s*(?:[x*X]+\s*)?(\d{3,4})\b/i) ??
     window.match(/\b[xX*]{2,}[\s-]*(\d{3,4})\b/);
   return m ? m[1] : null;
@@ -112,7 +113,8 @@ export function toLocalIso(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-export function findDate(window: string, receivedAt: string): string {
+/** `ambiguousClock`: the sender prints a 12-hour time with no AM/PM (ICICI cards). */
+export function findDate(window: string, receivedAt: string, opts: { ambiguousClock?: boolean } = {}): string {
   let y: number | undefined, mo: number | undefined, d: number | undefined;
   let m: RegExpMatchArray | null;
   if ((m = window.match(/\b(\d{1,2})[-/.](\d{1,2})[-/.](\d{4}|\d{2})\b/))) {
@@ -134,6 +136,10 @@ export function findDate(window: string, receivedAt: string): string {
   if (!y || !mo || !d || mo > 12 || d > 31) return toLocalIso(received);
 
   const date = `${y}-${pad(mo)}-${pad(d)}`;
+  if (t && opts.ambiguousClock && !t[4] && hour >= 1 && hour < 12 && toLocalIso(received).startsWith(date)) {
+    // The alert can't arrive before the payment: take the later reading if the email had already arrived by then.
+    if (Date.parse(`${date}T${pad(hour + 12)}:${t[2]}:${t[3] ?? '00'}`) <= received.getTime() + 10 * 60_000) hour += 12;
+  }
   if (t) return `${date}T${pad(hour)}:${t[2]}:${t[3] ?? '00'}`;
   // No time in the alert: the receive time is accurate when it's the same day, noon otherwise.
   const recv = toLocalIso(received);
@@ -178,12 +184,21 @@ export interface BankParser {
   ignoreSubject?: RegExp;
   /** A merchant/gateway receipt: the same payment usually also has a bank alert. */
   receipt?: boolean;
+  /** Times are printed on a 12-hour clock without AM/PM. */
+  ambiguousClock?: boolean;
 }
 
 const NOT_TXN_SUBJECT = /\b(otp|one time password|statement|e-?statement|offer|reward|cashback|reminder|password|login|update your|payment method|kyc|newsletter|emi conversion)\b/i;
 
+// "has been declined", "payment failed"; footers say "in case of a failed transaction", which must not match.
+const DECLINED = /\b(?:has been|was|been|is|got)\s+(?:declined|rejected|unsuccessful)\b|\b(?:transaction|payment)\s+(?:has\s+)?(?:failed|declined)\b/i;
+const INTEREST = /\bint(?:erest)?\.?\s*(?:pd|paid|credited)\b|\binterest (?:credit|paid|payout)\b/i;
+// Bank senders that only ever send statements, marketing and awareness mail.
+const NON_ALERT_SENDER = /statement|custcomm|mailers?\.|retailproducts|feedback@|newsletter|marketing|promo|offers?@/i;
+
 /** Checks that apply to every sender, known or not. Returns the amount when the email is worth parsing. */
 export function preCheck(email: EmailInput): { ignored: string } | { text: string; amount: { paise: number; index: number } } {
+  if (NON_ALERT_SENDER.test(email.from)) return { ignored: 'not an alert sender' };
   if (NOT_TXN_SUBJECT.test(email.subject) && !/debited|spent|credited/i.test(email.subject)) return { ignored: 'not a transaction alert' };
   const text = cleanText(`${email.subject}. ${email.body}`);
   const amount = findAmount(text);
@@ -200,6 +215,8 @@ export function parseWith(bank: BankParser, email: EmailInput): ParseResult {
   // Merchant patterns read from the start of the amount's sentence: "Sent Rs.300 from … to X", "for Rs 1,250 at X".
   const dot = window.lastIndexOf('. ', offset);
   const sentenceStart = dot < 0 ? 0 : dot + 2;
+  if (DECLINED.test(window) || DECLINED.test(email.subject)) return { status: 'ignored', reason: 'declined or failed' };
+  if (INTEREST.test(window)) return { status: 'ignored', reason: 'interest credit' };
   const dir = findDirection(window);
   if (!dir) return { status: 'unparsed', reason: 'direction unclear' };
 
@@ -214,7 +231,7 @@ export function parseWith(bank: BankParser, email: EmailInput): ParseResult {
         firstMatch(window.slice(sentenceStart), [...bank.merchantPatterns, ...GENERIC_MERCHANT_PATTERNS]),
       last4: findLast4(window),
       instrument: findInstrument(window),
-      txnAt: findDate(window, email.receivedAt),
+      txnAt: findDate(window, email.receivedAt, { ambiguousClock: bank.ambiguousClock }),
       refNo: findRef(window),
       window,
     },

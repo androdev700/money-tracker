@@ -1,4 +1,4 @@
-import { categorise, categoryFromHistory, categoryIdByName, type CategoryMatch } from '../classify/categorise.ts';
+import { categorise, categoryFromHistory, categoryIdByName, MIN_PREFIX_RULE, type CategoryMatch } from '../classify/categorise.ts';
 import { findDuplicate } from '../classify/dedupe.ts';
 import { classifyKind } from '../classify/kind.ts';
 import { normaliseMerchant } from '../classify/merchant.ts';
@@ -179,10 +179,14 @@ export function applyMerchantRule(db: DB, merchantKey: string, categoryId: numbe
        ON CONFLICT(merchant_key) DO UPDATE SET category_id = excluded.category_id,
          display_name = excluded.display_name, updated_at = datetime('now')`,
     ).run(merchantKey, categoryId, displayName);
+    // Same matching as categorise(): exact or prefix, and never over a more specific rule.
     db.prepare(
-      `UPDATE transactions SET category_id = ?, categorised_by = 'rule', needs_review = 0,
-         merchant = COALESCE(?, merchant), updated_at = datetime('now')
-       WHERE merchant_key = ? AND user_edited = 0 AND kind != 'excluded'`,
+      `UPDATE transactions AS t SET category_id = ?1, categorised_by = 'rule', needs_review = 0,
+         merchant = COALESCE(?2, merchant), updated_at = datetime('now')
+       WHERE t.user_edited = 0 AND t.kind != 'excluded'
+         AND (t.merchant_key = ?3 OR (length(?3) >= ${MIN_PREFIX_RULE} AND substr(t.merchant_key, 1, length(?3)) = ?3))
+         AND NOT EXISTS (SELECT 1 FROM merchant_rules r WHERE length(r.merchant_key) > length(?3)
+                           AND substr(t.merchant_key, 1, length(r.merchant_key)) = r.merchant_key)`,
     ).run(categoryId, displayName, merchantKey);
   });
 }
