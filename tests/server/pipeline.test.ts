@@ -223,6 +223,6 @@ describe('declined then retried', () => {
     addEmail('credit_cards@icici.bank.in', 'As the transaction amount exceeds the per transaction limit set for contactless transactions, your transaction of INR 1,234.56 using your ICICI Bank Credit Card XX0001, has been declined on Aug 13, 2026 at 03:29:50.', '2026-08-13T15:30:00');
     addEmail('credit_cards@icici.bank.in', 'Your ICICI Bank Credit Card XX0001 has been used for a transaction of INR 1,234.56 on Aug 13, 2026 at 03:30:40. Info: SAMPLE FUELS. The Available Credit Limit on your card is INR 1.00.', '2026-08-13T15:31:00');
     await processPending(db, { useLlm: false });
-    expect(txns()).toMatchObject([{ merchant: 'Sample Fuels', category: 'fuel', duplicate_of: null, txn_at: '2026-08-13T15:30:40' }]);
+    expect(txns()).toMatchObject([{ merchant: 'Sample Fuels', category: 'fuel', duplicate_of: null, txn_at: '2026-08-13T15:31:00' }]);
   });
 });

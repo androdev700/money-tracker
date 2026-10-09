@@ -3,7 +3,7 @@ import type { BankParser } from './common.ts';
 export const icici: BankParser = {
   id: 'icici',
   matches: (from) => /icici/i.test(from),
-  ambiguousClock: true,
+  useEmailTime: true,
   merchantPatterns: [
     /\btowards\s+(.+?)\s+from your\b/i,
     /\bInfo:?\s*(.+?)(?:\.\s|\s+The Available|\s+Avl|$)/i,

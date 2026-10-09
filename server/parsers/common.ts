@@ -113,8 +113,8 @@ export function toLocalIso(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-/** `ambiguousClock`: the sender prints a 12-hour time with no AM/PM (ICICI cards). */
-export function findDate(window: string, receivedAt: string, opts: { ambiguousClock?: boolean } = {}): string {
+/** `useEmailTime`: the sender's printed time can't be trusted, so take the email's arrival time instead. */
+export function findDate(window: string, receivedAt: string, opts: { useEmailTime?: boolean } = {}): string {
   let y: number | undefined, mo: number | undefined, d: number | undefined;
   let m: RegExpMatchArray | null;
   if ((m = window.match(/\b(\d{1,2})[-/.](\d{1,2})[-/.](\d{4}|\d{2})\b/))) {
@@ -136,13 +136,11 @@ export function findDate(window: string, receivedAt: string, opts: { ambiguousCl
   if (!y || !mo || !d || mo > 12 || d > 31) return toLocalIso(received);
 
   const date = `${y}-${pad(mo)}-${pad(d)}`;
-  if (t && opts.ambiguousClock && !t[4] && hour >= 1 && hour < 12 && toLocalIso(received).startsWith(date)) {
-    // The alert can't arrive before the payment: take the later reading if the email had already arrived by then.
-    if (Date.parse(`${date}T${pad(hour + 12)}:${t[2]}:${t[3] ?? '00'}`) <= received.getTime() + 10 * 60_000) hour += 12;
-  }
+  const recv = toLocalIso(received);
+  // A delayed alert that lands on a later day keeps the transaction's own date.
+  if (opts.useEmailTime && recv.startsWith(date)) return recv;
   if (t) return `${date}T${pad(hour)}:${t[2]}:${t[3] ?? '00'}`;
   // No time in the alert: the receive time is accurate when it's the same day, noon otherwise.
-  const recv = toLocalIso(received);
   return recv.startsWith(date) ? recv : `${date}T12:00:00`;
 }
 
@@ -184,8 +182,8 @@ export interface BankParser {
   ignoreSubject?: RegExp;
   /** A merchant/gateway receipt: the same payment usually also has a bank alert. */
   receipt?: boolean;
-  /** Times are printed on a 12-hour clock without AM/PM. */
-  ambiguousClock?: boolean;
+  /** Printed times are unreliable (ICICI: 12-hour clock without AM/PM); use when the email arrived. */
+  useEmailTime?: boolean;
 }
 
 const NOT_TXN_SUBJECT = /\b(otp|one time password|statement|e-?statement|offer|reward|cashback|reminder|upcoming|pre-?debit|password|login|update your|payment method|kyc|newsletter|emi conversion)\b/i;
@@ -234,7 +232,7 @@ export function parseWith(bank: BankParser, email: EmailInput): ParseResult {
         firstMatch(window.slice(sentenceStart), [...bank.merchantPatterns, ...GENERIC_MERCHANT_PATTERNS]),
       last4: findLast4(window),
       instrument: findInstrument(window),
-      txnAt: findDate(window, email.receivedAt, { ambiguousClock: bank.ambiguousClock }),
+      txnAt: findDate(window, email.receivedAt, { useEmailTime: bank.useEmailTime }),
       refNo: findRef(window),
       window,
     },

@@ -96,3 +96,21 @@ describe('wallet top-ups vs wallet spends', () => {
     expect(classifyKind({ ...base, merchantRaw: 'Amazon.in', window: 'Rs 197 was paid on Amazon.in. Thanks for using Amazon Pay Balance.' }, []).kind).toBe('spend');
   });
 });
+
+describe('ICICI email time', () => {
+  const alert = (receivedAt: string) =>
+    parseEmail({
+      from: 'credit_cards@icici.bank.in',
+      subject: 'Transaction alert for your ICICI Bank Credit Card',
+      receivedAt,
+      body: 'Your ICICI Bank Credit Card XX0001 has been used for a transaction of INR 500.00 on Oct 05, 2026 at 11:58:10. Info: SWIGGY. The Available Credit Limit on your card is INR 1.00.',
+    });
+  it('uses when the email arrived', () => {
+    const r = alert('2026-10-05T23:58:40');
+    expect(r.status === 'parsed' && r.txn.txnAt).toBe('2026-10-05T23:58:40');
+  });
+  it('keeps the transaction date when the email arrives the next day', () => {
+    const r = alert('2026-10-06T00:03:00');
+    expect(r.status === 'parsed' && r.txn.txnAt).toBe('2026-10-05T11:58:10');
+  });
+});
