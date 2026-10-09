@@ -17,8 +17,8 @@ export default defineConfig({
         name: 'Money Tracker',
         short_name: 'Money',
         description: 'Monthly spend tracker',
-        theme_color: '#000000',
-        background_color: '#000000',
+        theme_color: '#121211',
+        background_color: '#121211',
         display: 'standalone',
         start_url: '/',
         icons: [

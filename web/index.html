@@ -1,25 +1,12 @@
 <!doctype html>
-<html lang="en-IN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f4f4f1" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#121211" media="(prefers-color-scheme: dark)" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="Money" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <script>
-      // black-translucent always draws white status-bar text, so it only suits dark mode.
-      // In light mode the default style gives dark text on a bar matched to theme-color.
-      if (matchMedia('(prefers-color-scheme: dark)').matches)
-        document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content = 'black-translucent';
-    </script>
-    <style>
-      html { background: #f2f2f7; }
-      @media (prefers-color-scheme: dark) { html { background: #000; } }
-    </style>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Money</title>

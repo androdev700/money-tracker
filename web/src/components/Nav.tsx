@@ -1,12 +1,18 @@
-import type { Status } from '../lib/api';
+import type { ReactNode } from 'react';
 import { useApi, useStore } from '../lib/store';
-import { TabIcon, type TabSymbol } from './Icons';
+import type { Status } from '../lib/api';
 
-const ITEMS: { path: string; label: string; icon: TabSymbol }[] = [
-  { path: '/', label: 'Month', icon: 'month' },
-  { path: '/transactions', label: 'Transactions', icon: 'list' },
-  { path: '/review', label: 'Review', icon: 'review' },
-  { path: '/settings', label: 'Settings', icon: 'settings' },
+const Icon = ({ d }: { d: string }) => (
+  <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d={d} />
+  </svg>
+);
+
+const ITEMS: { path: string; label: string; icon: ReactNode }[] = [
+  { path: '/', label: 'Month', icon: <Icon d="M4 20V10M10 20V4M16 20v-7M22 20H2" /> },
+  { path: '/transactions', label: 'All', icon: <Icon d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /> },
+  { path: '/review', label: 'Review', icon: <Icon d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /> },
+  { path: '/settings', label: 'Settings', icon: <Icon d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /> },
 ];
 
 export function Nav() {
@@ -14,9 +20,8 @@ export function Nav() {
   const { data: status } = useApi<Status>('/api/status');
   const badge = (status?.reviewCount ?? 0) + (status?.unparsedCount ?? 0);
 
-  const link = (it: (typeof ITEMS)[number], variant: 'tab' | 'side') => {
+  const item = (it: (typeof ITEMS)[number], variant: 'bar' | 'side') => {
     const active = path === it.path;
-    const count = it.path === '/review' && badge > 0 ? badge : 0;
     return (
       <a
         key={it.path}
@@ -26,25 +31,19 @@ export function Nav() {
           navigate(it.path);
         }}
         aria-current={active ? 'page' : undefined}
-        aria-label={count ? `${it.label}, ${count} to review` : undefined}
         className={
-          variant === 'tab'
-            ? `relative flex min-w-0 flex-1 flex-col items-center justify-start gap-0.5 pt-1.5 ${active ? 'text-accent-text' : 'text-label-2'}`
-            : `tap flex h-11 items-center gap-3 rounded-lg px-3 text-body ${active ? 'bg-fill font-semibold' : ''}`
+          variant === 'bar'
+            ? `relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] ${active ? 'text-accent' : 'text-muted'}`
+            : `relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm ${active ? 'bg-sunken font-medium text-ink' : 'text-ink-2 hover:bg-sunken'}`
         }
       >
-        <span className={variant === 'side' ? 'text-accent' : 'relative'}>
-          <TabIcon name={it.icon} filled={active} className={variant === 'tab' ? 'size-[1.625rem]' : 'size-[1.375rem]'} />
-          {variant === 'tab' && count > 0 && (
-            <span className="absolute -top-1 left-[1.125rem] min-w-[1.125rem] rounded-full bg-danger px-[0.3125rem] text-center text-[0.75rem] leading-[1.125rem] font-medium text-white" aria-hidden>
-              {count}
-            </span>
-          )}
-        </span>
-        <span className={variant === 'tab' ? 'max-w-full truncate text-[0.625rem] leading-3 font-medium' : 'min-w-0 flex-1 truncate'}>{it.label}</span>
-        {variant === 'side' && count > 0 && (
-          <span className="text-subhead text-label-2" aria-hidden>
-            {count}
+        {it.icon}
+        <span>{it.label}</span>
+        {it.path === '/review' && badge > 0 && (
+          <span
+            className={`rounded-full bg-ink px-1.5 text-[10px] font-semibold leading-4 text-bg ${variant === 'bar' ? 'absolute top-1 left-1/2 ml-2' : 'ml-auto'}`}
+          >
+            {badge}
           </span>
         )}
       </a>
@@ -53,17 +52,14 @@ export function Nav() {
 
   return (
     <>
-      <nav aria-label="Main" className="material hairline-t fixed inset-x-0 bottom-0 z-30 flex h-[calc(3.0625rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] md:hidden">
-        {ITEMS.map((it) => link(it, 'tab'))}
+      <nav className="pb-safe fixed inset-x-0 bottom-0 z-20 flex border-t border-line bg-card/95 backdrop-blur md:hidden">
+        {ITEMS.map((it) => item(it, 'bar'))}
       </nav>
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col gap-0.5 bg-card/60 px-3 pt-[max(1rem,env(safe-area-inset-top))] shadow-[inset_calc(-1*var(--hairline))_0_0_var(--separator)] md:flex">
-        <div className="flex items-center gap-2.5 px-3 pt-3 pb-4">
-          <img src="/icon.svg" alt="" className="size-8 rounded-[0.5rem]" />
-          <span className="text-title2 font-bold">Money</span>
+      <aside className="fixed inset-y-0 left-0 hidden w-56 flex-col gap-1 border-r border-line bg-card p-4 md:flex">
+        <div className="mb-4 flex items-center gap-2 px-3 text-lg font-semibold">
+          <img src="/icon.svg" alt="" className="size-7" /> Money
         </div>
-        <nav aria-label="Main" className="flex flex-col gap-0.5">
-          {ITEMS.map((it) => link(it, 'side'))}
-        </nav>
+        {ITEMS.map((it) => item(it, 'side'))}
       </aside>
     </>
   );

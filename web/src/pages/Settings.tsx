@@ -1,32 +1,12 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { CategoryTile, useCategoryMap } from '../components/CategoryTile';
-import { Section } from '../components/Grouped';
-import { Glyph } from '../components/Icons';
-import { PageHeader } from '../components/PageHeader';
+import { useEffect, useState } from 'react';
 import { api, type Rule, type Status, type SyncStatus } from '../lib/api';
 import { capitalise, relativeTime } from '../lib/format';
 import { useApi, useStore } from '../lib/store';
 
-function InfoRow({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="cell">
-      <div className="cell-body">
-        <span className="shrink-0">{label}</span>
-        <span className="ml-auto min-w-0 truncate text-right text-label-2">{children}</span>
-      </div>
-    </div>
-  );
-}
+const card = 'rounded-2xl bg-card p-4';
+const btn = 'rounded-full border border-line px-4 py-1.5 text-sm font-medium hover:bg-sunken disabled:opacity-50';
 
-function ActionRow({ children, onClick, disabled, tone = 'accent' }: { children: ReactNode; onClick: () => void; disabled?: boolean; tone?: 'accent' | 'danger' }) {
-  return (
-    <button type="button" onClick={onClick} disabled={disabled} className={`cell tap ${tone === 'danger' ? 'text-danger' : 'text-accent-text'} disabled:text-label-3`}>
-      <span className="cell-body">{children}</span>
-    </button>
-  );
-}
-
-function SyncSection() {
+function SyncCard() {
   const { refresh } = useStore();
   const { data: status } = useApi<Status>('/api/status');
   const [busy, setBusy] = useState<string | null>(null);
@@ -47,50 +27,48 @@ function SyncSection() {
   };
 
   const last = status?.lastSync;
-  const syncing = busy === 'sync' || !!status?.syncing;
   return (
-    <>
-      <Section
-        header="Gmail sync"
-        footer={
-          status && !status.gmail.configured ? (
-            'Put GMAIL_USER and GMAIL_APP_PASSWORD in .env, then restart the server.'
-          ) : last && !last.ok ? (
-            <span className="text-danger">{last.error}</span>
-          ) : status && !status.ollama.available && status.ollama.enabled ? (
-            `Ollama or ${status.ollama.model} not found, so emails are read with patterns only.`
-          ) : null
-        }
-      >
-        <InfoRow label="Account">
-          {status && (status.gmail.configured ? `${status.gmail.user} · “${status.gmail.label}”` : <span className="text-danger">Not set up</span>)}
-        </InfoRow>
-        <InfoRow label="Last sync">
+    <section className={card}>
+      <h2 className="mb-3 font-medium">Gmail sync</h2>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+        <dt className="text-muted">Account</dt>
+        <dd>{status?.gmail.configured ? `${status.gmail.user} · label “${status.gmail.label}”` : <span className="text-danger">Not configured — set it in .env</span>}</dd>
+        <dt className="text-muted">Last sync</dt>
+        <dd>
           {last ? (
-            <span className="inline-flex items-center gap-1.5">
-              <span className={`size-2 shrink-0 rounded-full ${last.ok ? 'bg-ok' : 'bg-danger'}`} aria-hidden />
-              {relativeTime(last.at)}
-              <span className="sr-only">{last.ok ? ', succeeded' : ', failed'}</span>
+            <>
+              {relativeTime(last.at)} · {last.ok ? <span className="text-good">ok</span> : <span className="text-danger">failed</span>}
+              {!last.ok && <span className="block text-xs text-danger">{last.error}</span>}
+            </>
+          ) : (
+            'never'
+          )}
+        </dd>
+        <dt className="text-muted">Smart parsing</dt>
+        <dd>
+          {status?.ollama.available ? (
+            <span>
+              <span className="text-good">●</span> {status.ollama.model} on Ollama
             </span>
           ) : (
-            'Never'
+            <span className="text-ink-2">Off — regex only{status?.ollama.enabled ? ` (Ollama or ${status.ollama.model} not found)` : ''}</span>
           )}
-        </InfoRow>
-        <InfoRow label="Smart parsing">{status && (status.ollama.available ? `${status.ollama.model} on Ollama` : 'Off')}</InfoRow>
-      </Section>
-      <Section footer={result}>
-        <ActionRow disabled={!!busy || status?.syncing} onClick={() => run('sync', () => api.post('/api/sync'))}>
-          {syncing ? 'Syncing…' : 'Sync now'}
-        </ActionRow>
-        <ActionRow disabled={!!busy} onClick={() => run('reparse', () => api.post('/api/reparse', { scope: 'all' }))}>
+        </dd>
+      </dl>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button className={btn} disabled={!!busy || status?.syncing} onClick={() => run('sync', () => api.post('/api/sync'))}>
+          {busy === 'sync' || status?.syncing ? 'Syncing…' : 'Sync now'}
+        </button>
+        <button className={btn} disabled={!!busy} onClick={() => run('reparse', () => api.post('/api/reparse', { scope: 'all' }))}>
           {busy === 'reparse' ? 'Re-reading…' : 'Re-read all emails'}
-        </ActionRow>
-      </Section>
-    </>
+        </button>
+      </div>
+      {result && <p className="mt-2 text-xs text-ink-2">{result}</p>}
+    </section>
   );
 }
 
-function OwnAccountsSection() {
+function OwnAccountsCard() {
   const { data } = useApi<{ ownAccounts: string[] }>('/api/settings');
   const [text, setText] = useState('');
   const [saved, setSaved] = useState(false);
@@ -99,40 +77,35 @@ function OwnAccountsSection() {
   }, [data]);
 
   return (
-    <Section header="Your own accounts" footer="Money sent to these isn’t counted as spend. One per line: the last 4 digits of another account, or a UPI ID. Re-read emails afterwards.">
-      <div className="cell">
-        <div className="cell-body py-0 pr-0">
-          <textarea
-            value={text}
-            onChange={(e) => {
-              setText(e.target.value);
-              setSaved(false);
-            }}
-            rows={4}
-            placeholder={'9911\nyou@okhdfcbank'}
-            aria-label="Your own accounts"
-            className="block w-full resize-y bg-transparent py-3 pr-4 font-mono text-body outline-none"
-          />
-        </div>
-      </div>
-      <ActionRow
+    <section className={card}>
+      <h2 className="font-medium">Your own accounts</h2>
+      <p className="mb-3 text-sm text-ink-2">
+        Money sent to these isn’t counted as spend. One per line: last 4 digits of another account, or your UPI ID. Then re-read emails.
+      </p>
+      <textarea
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          setSaved(false);
+        }}
+        rows={4}
+        placeholder={'9911\nyou@okhdfcbank'}
+        className="w-full rounded-xl border border-line bg-bg px-3 py-2 font-mono text-sm outline-none focus:border-accent"
+      />
+      <button
+        className={`${btn} mt-2`}
         onClick={async () => {
           await api.put('/api/settings', { ownAccounts: text.split(/\n|,/) });
           setSaved(true);
         }}
       >
-        <span className="flex items-center gap-1.5">
-          {saved && <Glyph name="check" className="size-4" strokeWidth={2.5} />}
-          {saved ? 'Saved' : 'Save'}
-        </span>
-      </ActionRow>
-    </Section>
+        {saved ? 'Saved ✓' : 'Save'}
+      </button>
+    </section>
   );
 }
 
-const quietInput = 'min-w-0 rounded-md bg-transparent px-1.5 py-1 -mx-1.5 outline-none focus:bg-fill';
-
-function CategoriesSection() {
+function CategoriesCard() {
   const { categories, refresh } = useStore();
   const [name, setName] = useState('');
   const [icon, setIcon] = useState('');
@@ -144,33 +117,31 @@ function CategoriesSection() {
   };
 
   return (
-    <Section header="Categories" footer={error ? <span className="text-danger">{error}</span> : 'Tap a name or emoji to change it.'}>
-      {categories.map((c) => (
-        <div key={c.id} className="cell">
-          <span className={c.archived ? 'opacity-40' : ''}>
-            <CategoryTile icon={c.icon} color={c.color} />
-          </span>
-          <div className="cell-body py-0">
-            <input
-              defaultValue={capitalise(c.name)}
-              onBlur={(e) => e.target.value.trim() && e.target.value.trim().toLowerCase() !== c.name && update(c.id, { name: e.target.value })}
-              className={`flex-1 ${quietInput} ${c.archived ? 'text-label-2' : ''}`}
-              aria-label={`${c.name} name`}
-            />
+    <section className={card}>
+      <h2 className="mb-3 font-medium">Categories</h2>
+      <ul className="flex flex-col divide-y divide-line">
+        {categories.map((c) => (
+          <li key={c.id} className={`flex items-center gap-2 py-2 ${c.archived ? 'opacity-50' : ''}`}>
             <input
               defaultValue={c.icon}
               onBlur={(e) => e.target.value && e.target.value !== c.icon && update(c.id, { icon: e.target.value })}
-              className="h-8 w-10 shrink-0 rounded-lg bg-fill text-center text-[1.125rem] outline-none focus-visible:outline-2 focus-visible:outline-accent"
+              className="w-10 rounded-lg bg-transparent text-center text-lg"
               aria-label={`${c.name} icon`}
             />
-            <button onClick={() => update(c.id, { archived: !c.archived })} className="-mr-2 min-h-11 w-[4.5rem] shrink-0 text-right text-body text-accent-text pr-2">
+            <input
+              defaultValue={capitalise(c.name)}
+              onBlur={(e) => e.target.value.trim() && e.target.value.trim().toLowerCase() !== c.name && update(c.id, { name: e.target.value })}
+              className="min-w-0 flex-1 rounded-lg bg-transparent px-2 py-1 hover:bg-sunken focus:bg-sunken focus:outline-none"
+              aria-label={`${c.name} name`}
+            />
+            <button onClick={() => update(c.id, { archived: !c.archived })} className="text-xs text-ink-2">
               {c.archived ? 'Restore' : 'Hide'}
             </button>
-          </div>
-        </div>
-      ))}
+          </li>
+        ))}
+      </ul>
       <form
-        className="cell"
+        className="mt-3 flex gap-2"
         onSubmit={async (e) => {
           e.preventDefault();
           setError(null);
@@ -184,77 +155,59 @@ function CategoriesSection() {
           }
         }}
       >
-        <input
-          value={icon}
-          onChange={(e) => setIcon(e.target.value)}
-          placeholder="🙂"
-          aria-label="New category icon"
-          className="size-[1.875rem] shrink-0 rounded-[0.4375rem] bg-fill text-center text-[1rem] outline-none focus-visible:outline-2 focus-visible:outline-accent"
-        />
-        <div className="cell-body py-0">
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="New category" aria-label="New category name" className={`flex-1 ${quietInput}`} />
-          <button disabled={!name.trim()} className="-mr-2 min-h-11 shrink-0 pr-2 pl-3 text-body font-semibold text-accent-text disabled:text-label-3">
-            Add
-          </button>
-        </div>
+        <input value={icon} onChange={(e) => setIcon(e.target.value)} placeholder="🙂" className="w-12 rounded-xl border border-line bg-bg px-2 py-2 text-center" aria-label="New category icon" />
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="New category" className="min-w-0 flex-1 rounded-xl border border-line bg-bg px-3 py-2" />
+        <button className={btn} disabled={!name.trim()}>
+          Add
+        </button>
       </form>
-    </Section>
+      {error && <p className="mt-2 text-xs text-danger">{error}</p>}
+    </section>
   );
 }
 
-function RulesSection() {
+function RulesCard() {
   const { refresh } = useStore();
-  const categories = useCategoryMap();
   const { data: rules } = useApi<Rule[]>('/api/rules');
   return (
-    <Section header="Learned merchants" footer="Made when you pick a category. Remove one to let auto-categorising decide again.">
-      {rules && !rules.length && <p className="px-4 py-3 text-label-2">None yet</p>}
-      {rules?.map((r) => (
-        <div key={r.merchant_key} className="cell">
-          <div className="cell-body py-1.5 pr-1">
-            <span className="min-w-0 flex-1">
-              <span className="block truncate">{r.display_name ?? r.merchant_key}</span>
-              <span className="block text-footnote text-label-2">
-                {r.txn_count} spend{r.txn_count === 1 ? '' : 's'}
-              </span>
+    <section className={card}>
+      <h2 className="font-medium">Learned merchants</h2>
+      <p className="mb-3 text-sm text-ink-2">Created when you pick a category. Remove one to let auto-categorising decide again.</p>
+      {!rules?.length && <p className="text-sm text-muted">None yet.</p>}
+      <ul className="flex flex-col divide-y divide-line">
+        {rules?.map((r) => (
+          <li key={r.merchant_key} className="flex items-center gap-3 py-2 text-sm">
+            <span className="min-w-0 flex-1 truncate">
+              {r.display_name ?? r.merchant_key} <span className="text-xs text-muted">· {r.txn_count}×</span>
             </span>
-            <span className="flex min-w-0 shrink items-center gap-1.5 text-subhead text-label-2">
-              <CategoryTile icon={r.category_icon} color={categories.get(r.category_id)?.color} size="sm" />
-              <span className="truncate">{capitalise(r.category_name)}</span>
+            <span className="shrink-0 text-ink-2">
+              {r.category_icon} {capitalise(r.category_name)}
             </span>
             <button
               onClick={async () => {
                 await api.del(`/api/rules/${encodeURIComponent(r.merchant_key)}`);
                 refresh();
               }}
-              className="grid size-11 shrink-0 place-items-center rounded-full text-danger"
+              className="text-xs text-danger"
               aria-label={`Remove rule for ${r.merchant_key}`}
-              title="Remove"
             >
-              <svg viewBox="0 0 24 24" className="size-[1.375rem]" aria-hidden>
-                <circle cx="12" cy="12" r="10" fill="currentColor" />
-                <path d="M7.5 12h9" stroke="white" strokeWidth={2.25} strokeLinecap="round" />
-              </svg>
+              Remove
             </button>
-          </div>
-        </div>
-      ))}
-    </Section>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
 export function SettingsPage() {
   return (
-    <>
-      <PageHeader title="Settings" add={false} />
-      <div className="mx-auto flex max-w-[42rem] flex-col gap-8 pt-2">
-        <div className="flex flex-col gap-6">
-          <SyncSection />
-        </div>
-        <OwnAccountsSection />
-        <CategoriesSection />
-        <RulesSection />
-      </div>
-    </>
+    <div className="flex flex-col gap-4">
+      <h1 className="text-xl font-semibold">Settings</h1>
+      <SyncCard />
+      <OwnAccountsCard />
+      <CategoriesCard />
+      <RulesCard />
+    </div>
   );
 }

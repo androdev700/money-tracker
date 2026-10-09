@@ -14,14 +14,21 @@ const PAGES: Record<string, () => React.JSX.Element> = {
 };
 
 export function App() {
-  const { path } = useStore();
+  const { path, openEditor } = useStore();
   const Page = PAGES[path] ?? MonthPage;
   return (
     <>
       <Nav />
-      <main className="gutter pb-[calc(3.0625rem+env(safe-area-inset-bottom)+2rem)] md:ml-64 md:pb-16">
+      <main className="mx-auto max-w-5xl px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-28 md:pl-60 md:pb-10 lg:pl-64">
         <Page />
       </main>
+      <button
+        onClick={() => openEditor({})}
+        aria-label="Add spend"
+        className="fixed right-5 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-full bg-accent text-3xl text-on-accent shadow-lg md:right-8 md:bottom-8"
+      >
+        +
+      </button>
       <TxnSheet />
     </>
   );

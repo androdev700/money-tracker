@@ -1,352 +1,82 @@
 @import 'tailwindcss';
 
-/* iOS semantic colours. Two deliberate departures, both for WCAG AA on small text:
-   light secondaryLabel is .76 alpha instead of .6, and text in the accent or red uses a
-   deeper shade (--accent-text, --danger) than the systemBlue/systemRed used for fills. */
 :root {
   color-scheme: light;
-  --bg: #f2f2f7;
-  --card: #ffffff;
-  --sheet: #f2f2f7;
-  --sheet-card: #ffffff;
-  --label: #000000;
-  --label-2: rgba(60, 60, 67, 0.76);
-  --label-3: rgba(60, 60, 67, 0.3);
-  --separator: rgba(60, 60, 67, 0.29);
-  --fill: rgba(118, 118, 128, 0.12);
-  --fill-2: rgba(120, 120, 128, 0.16);
-  --pressed: #d1d1d6;
-  --hover: rgba(118, 118, 128, 0.08);
-  --thumb: #ffffff;
-  --accent: #007aff;
-  --accent-text: #0068da;
-  --accent-soft: rgba(0, 122, 255, 0.12);
-  --danger: #d70015;
-  --ok: #34c759;
-  --switch-on: #34c759;
-  --warn: #c93400;
-  --warn-soft: rgba(255, 149, 0, 0.16);
-  --warn-fill: #ff9500;
-  --material: rgba(249, 249, 249, 0.8);
-  --backdrop: rgba(0, 0, 0, 0.4);
-  --hairline: 1px;
-}
-@media (min-resolution: 2dppx) {
-  :root {
-    --hairline: 0.5px;
-  }
+  --bg: #f4f4f1;
+  --card: #fcfcfb;
+  --sunken: #ecebe7;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #7d7c77;
+  --line: #e3e2dd;
+  --accent: #2a78d6;
+  --accent-soft: #cde2fb;
+  --on-accent: #ffffff;
+  --danger: #c92a2a;
+  --good: #008300;
+  --warn: #b26b00;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
+  :root:where(:not([data-theme='light'])) {
     color-scheme: dark;
-    --bg: #000000;
-    --card: #1c1c1e;
-    --sheet: #1c1c1e;
-    --sheet-card: #2c2c2e;
-    --label: #ffffff;
-    --label-2: rgba(235, 235, 245, 0.6);
-    --label-3: rgba(235, 235, 245, 0.3);
-    --separator: rgba(84, 84, 88, 0.6);
-    --fill: rgba(118, 118, 128, 0.24);
-    --fill-2: rgba(120, 120, 128, 0.32);
-    --pressed: #3a3a3c;
-    --hover: rgba(118, 118, 128, 0.14);
-    --thumb: #636366;
-    --accent: #0a84ff;
-    --accent-text: #0a84ff;
-    --accent-soft: rgba(10, 132, 255, 0.2);
-    --danger: #ff453a;
-    --ok: #30d158;
-    --switch-on: #30d158;
-    --warn: #ff9f0a;
-    --warn-soft: rgba(255, 159, 10, 0.2);
-    --warn-fill: #ff9f0a;
-    --material: rgba(22, 22, 23, 0.8);
-    --backdrop: rgba(0, 0, 0, 0.6);
+    --bg: #121211;
+    --card: #1a1a19;
+    --sunken: #232322;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #8f8e86;
+    --line: #2e2e2c;
+    --accent: #3987e5;
+    --accent-soft: #184f95;
+    --on-accent: #ffffff;
+    --danger: #e66767;
+    --good: #2fa84f;
+    --warn: #e0a030;
   }
 }
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg: #000000;
-  --card: #1c1c1e;
-  --sheet: #1c1c1e;
-  --sheet-card: #2c2c2e;
-  --label: #ffffff;
-  --label-2: rgba(235, 235, 245, 0.6);
-  --label-3: rgba(235, 235, 245, 0.3);
-  --separator: rgba(84, 84, 88, 0.6);
-  --fill: rgba(118, 118, 128, 0.24);
-  --fill-2: rgba(120, 120, 128, 0.32);
-  --pressed: #3a3a3c;
-  --hover: rgba(118, 118, 128, 0.14);
-  --thumb: #636366;
-  --accent: #0a84ff;
-  --accent-text: #0a84ff;
-  --accent-soft: rgba(10, 132, 255, 0.2);
-  --danger: #ff453a;
-  --ok: #30d158;
-  --switch-on: #30d158;
-  --warn: #ff9f0a;
-  --warn-soft: rgba(255, 159, 10, 0.2);
-  --warn-fill: #ff9f0a;
-  --material: rgba(22, 22, 23, 0.8);
-  --backdrop: rgba(0, 0, 0, 0.6);
+  --bg: #121211;
+  --card: #1a1a19;
+  --sunken: #232322;
+  --ink: #ffffff;
+  --ink-2: #c3c2b7;
+  --muted: #8f8e86;
+  --line: #2e2e2c;
+  --accent: #3987e5;
+  --accent-soft: #184f95;
+  --on-accent: #ffffff;
+  --danger: #e66767;
+  --good: #2fa84f;
+  --warn: #e0a030;
 }
 
 @theme inline {
   --color-bg: var(--bg);
   --color-card: var(--card);
-  --color-sheet: var(--sheet);
-  --color-sheet-card: var(--sheet-card);
-  --color-label: var(--label);
-  --color-label-2: var(--label-2);
-  --color-label-3: var(--label-3);
-  --color-separator: var(--separator);
-  --color-fill: var(--fill);
-  --color-fill-2: var(--fill-2);
+  --color-sunken: var(--sunken);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
   --color-accent: var(--accent);
-  --color-accent-text: var(--accent-text);
   --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
   --color-danger: var(--danger);
-  --color-ok: var(--ok);
+  --color-good: var(--good);
   --color-warn: var(--warn);
-  --color-warn-soft: var(--warn-soft);
-  --color-warn-fill: var(--warn-fill);
-
-  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
-  --font-rounded: ui-rounded, 'SF Pro Rounded', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
-
-  /* iOS type ramp at the default Dynamic Type size, in rem so it follows the user's text size. */
-  --text-large: 2.125rem;
-  --text-large--line-height: 2.5625rem;
-  --text-title1: 1.75rem;
-  --text-title1--line-height: 2.125rem;
-  --text-title2: 1.375rem;
-  --text-title2--line-height: 1.75rem;
-  --text-title3: 1.25rem;
-  --text-title3--line-height: 1.5625rem;
-  --text-headline: 1.0625rem;
-  --text-headline--line-height: 1.375rem;
-  --text-headline--font-weight: 600;
-  --text-body: 1.0625rem;
-  --text-body--line-height: 1.375rem;
-  --text-callout: 1rem;
-  --text-callout--line-height: 1.3125rem;
-  --text-subhead: 0.9375rem;
-  --text-subhead--line-height: 1.25rem;
-  --text-footnote: 0.8125rem;
-  --text-footnote--line-height: 1.125rem;
-  --text-caption: 0.75rem;
-  --text-caption--line-height: 1rem;
-  --text-caption2: 0.6875rem;
-  --text-caption2--line-height: 0.8125rem;
-
-  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
-html {
-  background: var(--bg);
-  -webkit-text-size-adjust: 100%;
-}
+html,
 body {
-  margin: 0;
-  min-height: 100dvh;
   background: var(--bg);
-  color: var(--label);
-  font-family: var(--font-sans);
-  font-size: var(--text-body);
-  line-height: var(--text-body--line-height);
-  font-variant-numeric: tabular-nums;
-  -webkit-font-smoothing: antialiased;
+  color: var(--ink);
   -webkit-tap-highlight-color: transparent;
 }
-button,
-summary,
-select {
-  cursor: pointer;
+body {
+  font-feature-settings: 'tnum' 1;
 }
-button:disabled {
-  cursor: default;
-}
-@layer base {
-  :focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
-}
-::placeholder {
-  color: var(--label-3);
-  opacity: 1;
-}
-
-@layer components {
-  /* The page gutter is shared so the sticky nav bar can bleed to the edges of the column. */
-  .gutter {
-    --gutter: 1rem;
-    --gutter-l: calc(var(--gutter) + env(safe-area-inset-left));
-    --gutter-r: calc(var(--gutter) + env(safe-area-inset-right));
-    padding-left: var(--gutter-l);
-    padding-right: var(--gutter-r);
-  }
-  @media (min-width: 640px) {
-    .gutter {
-      --gutter: 1.25rem;
-    }
-  }
-  @media (min-width: 768px) {
-    .gutter {
-      --gutter: 2rem;
-    }
-  }
-  .bleed {
-    margin-left: calc(-1 * var(--gutter-l));
-    margin-right: calc(-1 * var(--gutter-r));
-    padding-left: var(--gutter-l);
-    padding-right: var(--gutter-r);
-  }
-
-  .material {
-    background: var(--material);
-    -webkit-backdrop-filter: saturate(180%) blur(20px);
-    backdrop-filter: saturate(180%) blur(20px);
-  }
-  .hairline-t {
-    box-shadow: inset 0 var(--hairline) 0 var(--separator);
-  }
-  .hairline-b {
-    box-shadow: inset 0 calc(-1 * var(--hairline)) 0 var(--separator);
-  }
-
-  /* Inset grouped list cell. The separator sits on .cell-body so it starts at the text, past any icon. */
-  .cell {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    width: 100%;
-    min-height: 2.75rem;
-    padding-left: 1rem;
-    text-align: left;
-  }
-  .cell-body {
-    display: flex;
-    flex: 1;
-    align-items: center;
-    align-self: stretch;
-    gap: 0.75rem;
-    min-width: 0;
-    padding: 0.6875rem 1rem 0.6875rem 0;
-  }
-  .cell + .cell > .cell-body {
-    box-shadow: inset 0 var(--hairline) 0 var(--separator);
-  }
-  .cell:focus-visible {
-    outline-offset: -2px;
-  }
-  .tap {
-    transition: background-color 0.2s;
-  }
-  .tap:active:not(:disabled) {
-    background: var(--pressed);
-    transition: none;
-  }
-  @media (hover: hover) {
-    .tap:hover:not(:disabled):not(:active) {
-      background: var(--hover);
-    }
-  }
-
-  .switch {
-    appearance: none;
-    position: relative;
-    flex-shrink: 0;
-    width: 3.1875rem;
-    height: 1.9375rem;
-    border-radius: 999px;
-    background: var(--fill-2);
-    transition: background-color 0.25s;
-    cursor: pointer;
-  }
-  .switch::before {
-    content: '';
-    position: absolute;
-    top: 0.125rem;
-    left: 0.125rem;
-    width: 1.6875rem;
-    height: 1.6875rem;
-    border-radius: 999px;
-    background: #fff;
-    box-shadow:
-      0 3px 8px rgba(0, 0, 0, 0.15),
-      0 3px 1px rgba(0, 0, 0, 0.06);
-    transition: transform 0.3s var(--ease-spring);
-  }
-  .switch:checked {
-    background: var(--switch-on);
-  }
-  .switch:checked::before {
-    transform: translateX(1.25rem);
-  }
-
-  .segment-thumb {
-    background: var(--thumb);
-    box-shadow:
-      0 3px 8px rgba(0, 0, 0, 0.12),
-      0 3px 1px rgba(0, 0, 0, 0.04);
-    transition: transform 0.3s var(--ease-spring);
-  }
-}
-
-input[type='search']::-webkit-search-decoration {
-  appearance: none;
-}
-input[type='date'],
-input[type='time'] {
-  min-width: 0;
-}
-details > summary {
-  list-style: none;
-}
-details > summary::-webkit-details-marker {
-  display: none;
-}
-details[open] .disclosure {
-  transform: rotate(90deg);
-}
-
-@keyframes sheet-up {
-  from {
-    transform: translateY(100%);
-  }
-}
-@keyframes form-sheet-in {
-  from {
-    opacity: 0;
-    transform: translateY(1.5rem) scale(0.98);
-  }
-}
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-}
-.anim-fade {
-  animation: fade-in 0.3s ease-out;
-}
-.anim-sheet {
-  animation: sheet-up 0.45s var(--ease-spring);
-}
-@media (min-width: 768px) {
-  .anim-sheet {
-    animation: form-sheet-in 0.35s var(--ease-spring);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  ::before,
-  ::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
 }
