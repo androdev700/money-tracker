@@ -3,7 +3,7 @@ import { api, type Rule, type Status, type SyncStatus } from '../lib/api';
 import { capitalise, relativeTime } from '../lib/format';
 import { useApi, useStore } from '../lib/store';
 
-const card = 'rounded-2xl bg-card p-4';
+const card = 'card p-4';
 const btn = 'rounded-full border border-line px-4 py-1.5 text-sm font-medium hover:bg-sunken disabled:opacity-50';
 
 function SyncCard() {

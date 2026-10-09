@@ -2,6 +2,17 @@ const inr = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2, minimumFr
 
 export const rupees = (paise: number) => `₹${inr.format(paise / 100)}`;
 
+/** Live en-IN grouping for the amount field: "113072.5" -> "1,13,072.5". Keeps a trailing "." while typing. */
+export function groupAmountInput(raw: string): string {
+  const clean = raw.replace(/[^\d.]/g, '');
+  const [int = '', ...rest] = clean.split('.');
+  const dec = rest.join('').slice(0, 2);
+  const grouped = int ? new Intl.NumberFormat('en-IN').format(Number(int.slice(0, 9))) : '';
+  return clean.includes('.') ? `${grouped || '0'}.${dec}` : grouped;
+}
+
+export const amountToPaise = (input: string) => Math.round(parseFloat(input.replace(/,/g, '')) * 100);
+
 const inrWhole = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
 /** For totals, where paise are noise. */
 export const rupeesWhole = (paise: number) => `₹${inrWhole.format(Math.round(paise / 100))}`;

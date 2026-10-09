@@ -226,3 +226,43 @@ describe('declined then retried', () => {
     expect(txns()).toMatchObject([{ merchant: 'Sample Fuels', category: 'fuel', duplicate_of: null, txn_at: '2026-08-13T15:31:00' }]);
   });
 });
+
+describe('undo and suggestions', () => {
+  it('restores a deleted spend', async () => {
+    const app = await buildApp(db);
+    const { id } = (await app.inject({ method: 'POST', url: '/api/transactions', payload: { txn_at: '2026-10-10T10:00', amount_paise: 5000, merchant: 'Chai stall' } })).json();
+    await app.inject({ method: 'DELETE', url: `/api/transactions/${id}` });
+    const res = await app.inject({ method: 'POST', url: `/api/transactions/${id}/restore`, payload: {} });
+    expect(res.statusCode).toBe(200);
+    expect((await app.inject('/api/summary?month=2026-10')).json().total).toBe(5000);
+    expect((await app.inject({ method: 'POST', url: `/api/transactions/${id}/restore`, payload: {} })).statusCode).toBe(404);
+  });
+
+  it('suggests past merchants, most used first, with their category', async () => {
+    addEmail('alerts@hdfcbank.net', hdfcUpi('450.00', 'swiggy@icici', 'SWIGGY', '05-10-26', '627812345678'));
+    addEmail('alerts@hdfcbank.net', hdfcUpi('300.00', 'swiggy@icici', 'SWIGGY', '06-10-26', '627812345679'));
+    addEmail('alerts@hdfcbank.net', hdfcUpi('80.00', 'q12345@ybl', 'SHARMA STORE', '06-10-26', '627812345680'));
+    await processPending(db, { useLlm: false });
+    const app = await buildApp(db);
+    const all = (await app.inject('/api/merchants')).json();
+    expect(all.map((m: any) => m.merchant)).toEqual(['Swiggy', 'Sharma Store']);
+    expect(all[0]).toMatchObject({ uses: 2, category_id: 1 });
+    expect(all[1].category_id).toBeNull();
+    expect((await app.inject('/api/merchants?q=sha')).json().map((m: any) => m.merchant)).toEqual(['Sharma Store']);
+  });
+});
+
+describe('month totals', () => {
+  it('nets refunds and skips excluded rows per month', async () => {
+    addEmail('alerts@hdfcbank.net', hdfcUpi('450.00', 'swiggy@icici', 'SWIGGY', '05-10-26', '627812345678'));
+    addEmail('alerts@hdfcbank.net', hdfcUpi('15000.00', 'cred.club@axisb', 'CRED', '06-10-26', '627812345680'));
+    addEmail('alerts@hdfcbank.net', hdfcUpi('200.00', 'swiggy@icici', 'SWIGGY', '28-09-26', '627812345681'), '2026-09-28T20:00:00');
+    addEmail('alerts@hdfcbank.net', 'Rs.100.00 has been credited to your HDFC Bank Credit Card ending 1234 towards refund from SWIGGY on 08-10-2026.');
+    await processPending(db, { useLlm: false });
+    const app = await buildApp(db);
+    expect((await app.inject('/api/months')).json()).toEqual([
+      { month: '2026-09', total: 20000, count: 1 },
+      { month: '2026-10', total: 35000, count: 2 },
+    ]);
+  });
+});

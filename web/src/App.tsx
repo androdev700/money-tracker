@@ -1,4 +1,5 @@
 import { Nav } from './components/Nav';
+import { ToastHost } from './components/Toast';
 import { TxnSheet } from './components/TxnSheet';
 import { MonthPage } from './pages/Month';
 import { ReviewPage } from './pages/Review';
@@ -19,7 +20,7 @@ export function App() {
   return (
     <>
       <Nav />
-      <main className="mx-auto max-w-5xl px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-28 md:pl-60 md:pb-10 lg:pl-64">
+      <main className="mx-auto max-w-5xl px-4 pt-[max(1rem,env(safe-area-inset-top))] has-[.sticky]:pt-0 pb-28 md:pl-60 md:pb-10 lg:pl-64">
         <Page />
       </main>
       <button
@@ -30,6 +31,7 @@ export function App() {
         +
       </button>
       <TxnSheet />
+      <ToastHost />
     </>
   );
 }

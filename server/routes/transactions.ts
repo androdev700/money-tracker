@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { categorise } from '../classify/categorise.ts';
 import { normaliseMerchant } from '../classify/merchant.ts';
 import { tx, type DB } from '../db.ts';
 import { toLocalIso } from '../parsers/common.ts';
@@ -102,6 +103,16 @@ export function transactionRoutes(app: FastifyInstance, db: DB) {
       reviewCount: flags.review ?? 0,
     };
   });
+
+  // Net spend per month, for the month picker.
+  app.get('/api/months', async () =>
+    db
+      .prepare(
+        `SELECT substr(t.txn_at, 1, 7) AS month, SUM(${SIGNED}) AS total, COUNT(*) AS count
+         FROM transactions t WHERE ${COUNTED} GROUP BY month ORDER BY month`,
+      )
+      .all(),
+  );
 
   app.get<{
     Querystring: { month?: string; category?: string; kind?: string; source?: string; q?: string; review?: string; limit?: string };
@@ -220,6 +231,31 @@ export function transactionRoutes(app: FastifyInstance, db: DB) {
       return db.prepare(`${TXN_SELECT} WHERE t.id = ?`).get(id);
     },
   );
+
+  app.post<{ Params: { id: string } }>('/api/transactions/:id/restore', async (req, reply) => {
+    const res = db.prepare('UPDATE transactions SET deleted_at = NULL WHERE id = ? AND deleted_at IS NOT NULL').run(Number(req.params.id));
+    return res.changes ? db.prepare(`${TXN_SELECT} WHERE t.id = ?`).get(Number(req.params.id)) : reply.code(404).send({ error: 'not found' });
+  });
+
+  // Merchants you've spent at, most used first, with the category a new spend there would get.
+  app.get<{ Querystring: { q?: string } }>('/api/merchants', async (req) => {
+    const q = (req.query.q ?? '').trim();
+    const rows = db
+      .prepare(
+        `SELECT t.merchant, t.merchant_key, COUNT(*) AS uses, MAX(t.txn_at) AS last_at,
+           (SELECT category_id FROM transactions x WHERE x.merchant_key = t.merchant_key AND x.category_id IS NOT NULL
+              AND x.deleted_at IS NULL ORDER BY x.txn_at DESC LIMIT 1) AS last_category_id
+         FROM transactions t
+         WHERE t.deleted_at IS NULL AND t.kind = 'spend' AND t.merchant_key != 'unknown' AND t.merchant LIKE ?
+         GROUP BY t.merchant_key ORDER BY uses DESC, last_at DESC LIMIT 6`,
+      )
+      .all(`%${q}%`) as { merchant: string; merchant_key: string; uses: number; last_category_id: number | null }[];
+    return rows.map((r) => ({
+      merchant: r.merchant,
+      uses: r.uses,
+      category_id: categorise(db, r.merchant_key, r.merchant)?.categoryId ?? r.last_category_id,
+    }));
+  });
 
   // Soft delete: an email-sourced row must stay tombstoned or the next sync would recreate it.
   app.delete<{ Params: { id: string } }>('/api/transactions/:id', async (req, reply) => {

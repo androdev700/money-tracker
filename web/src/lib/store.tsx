@@ -1,7 +1,16 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { api, type Category, type Txn } from './api';
 
+export interface Toast {
+  id: number;
+  message: string;
+  action?: { label: string; run: () => void };
+}
+
 interface Store {
+  toast: Toast | null;
+  showToast: (message: string, action?: Toast['action']) => void;
+  dismissToast: () => void;
   version: number;
   refresh: () => void;
   categories: Category[];
@@ -21,6 +30,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [loc, setLoc] = useState(() => ({ path: location.pathname, search: location.search }));
 
   const refresh = useCallback(() => setVersion((v) => v + 1), []);
+  const [toast, setToast] = useState<Toast | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const dismissToast = useCallback(() => setToast(null), []);
+  const showToast = useCallback((message: string, action?: Toast['action']) => {
+    clearTimeout(toastTimer.current);
+    setToast({ id: Date.now(), message, action });
+    toastTimer.current = setTimeout(() => setToast(null), action ? 5000 : 2500);
+  }, []);
   const navigate = useCallback((to: string, opts?: { replace?: boolean }) => {
     if (opts?.replace) history.replaceState(null, '', to);
     else {
@@ -49,7 +66,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   return (
     <Ctx.Provider
-      value={{ version, refresh, categories, editing, openEditor, path: loc.path, search: new URLSearchParams(loc.search), navigate }}
+      value={{
+        version,
+        refresh,
+        categories,
+        editing,
+        openEditor,
+        path: loc.path,
+        search: new URLSearchParams(loc.search),
+        navigate,
+        toast,
+        showToast,
+        dismissToast,
+      }}
     >
       {children}
     </Ctx.Provider>

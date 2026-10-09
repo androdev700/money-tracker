@@ -31,6 +31,7 @@ export interface Txn {
   duplicate_of: number | null;
   category_name: string | null;
   category_icon: string | null;
+  category_color: string | null;
 }
 
 export interface Summary {
@@ -38,7 +39,7 @@ export interface Summary {
   total: number;
   prevTotal: number;
   prevToDate: number | null;
-  byCategory: { category_id: number | null; name: string | null; icon: string | null; total: number; count: number }[];
+  byCategory: { category_id: number | null; name: string | null; icon: string | null; color: string | null; total: number; count: number }[];
   byDay: { day: string; total: number }[];
   excludedCount: number;
   reviewCount: number;
@@ -79,6 +80,18 @@ export interface EmailRow {
   error: string | null;
   snippet?: string;
   body_text?: string;
+}
+
+export interface MonthTotal {
+  month: string;
+  total: number;
+  count: number;
+}
+
+export interface MerchantSuggestion {
+  merchant: string;
+  uses: number;
+  category_id: number | null;
 }
 
 export interface TxnInput {

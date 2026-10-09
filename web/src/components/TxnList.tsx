@@ -1,6 +1,7 @@
 import type { Txn } from '../lib/api';
 import { capitalise, dayLabel, rupees, timeLabel } from '../lib/format';
 import { useStore } from '../lib/store';
+import { Tile } from './Tile';
 
 export function TxnRow({ t }: { t: Txn }) {
   const { openEditor } = useStore();
@@ -11,10 +12,8 @@ export function TxnRow({ t }: { t: Txn }) {
   ].filter(Boolean);
 
   return (
-    <button onClick={() => openEditor(t)} className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left hover:bg-sunken">
-      <span className="grid size-10 shrink-0 place-items-center rounded-full bg-sunken text-lg" aria-hidden>
-        {t.kind === 'excluded' ? '⇄' : (t.category_icon ?? '❔')}
-      </span>
+    <button onClick={() => openEditor(t)} className="flex w-full items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition-colors hover:bg-sunken active:bg-sunken">
+      <Tile icon={t.kind === 'excluded' ? '⇄' : t.category_icon} color={t.kind === 'excluded' ? null : t.category_color} />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5">
           <span className={`truncate font-medium ${t.kind === 'excluded' || t.duplicate_of ? 'text-muted line-through decoration-1' : ''}`}>{t.merchant}</span>
@@ -25,7 +24,7 @@ export function TxnRow({ t }: { t: Txn }) {
         <span className="block truncate text-xs text-muted">{sub.join(' · ')}</span>
         {t.note && <span className="block truncate text-xs text-ink-2">{t.note}</span>}
       </span>
-      <span className={`shrink-0 text-right font-medium ${t.kind === 'excluded' || t.duplicate_of ? 'text-muted' : ''}`}>
+      <span className={`shrink-0 text-right font-semibold ${t.kind === 'refund' ? 'text-good' : t.kind === 'excluded' || t.duplicate_of ? 'text-muted' : ''}`}>
         {t.kind === 'refund' ? '−' : ''}
         {rupees(t.amount_paise)}
       </span>
@@ -53,12 +52,13 @@ export function TxnList({ txns, empty = 'Nothing here.' }: { txns: Txn[]; empty?
   return (
     <div className="flex flex-col gap-4">
       {[...groups].map(([day, list]) => {
-        const total = list.reduce((s, t) => s + (t.kind === 'excluded' || t.duplicate_of ? 0 : t.kind === 'refund' ? -t.amount_paise : t.amount_paise), 0);
+        const counted = list.filter((t) => t.kind !== 'excluded' && !t.duplicate_of);
+        const total = counted.reduce((s, t) => s + (t.kind === 'refund' ? -t.amount_paise : t.amount_paise), 0);
         return (
           <section key={day}>
-            <h3 className="sticky top-0 z-10 flex justify-between bg-bg/95 px-2 py-1.5 text-xs font-medium text-muted backdrop-blur">
+            <h3 className="flex justify-between px-2 pt-1 pb-1.5 text-xs font-medium tracking-wide text-muted uppercase">
               <span>{dayLabel(day)}</span>
-              <span>{rupees(total)}</span>
+              {counted.length > 0 && <span>{rupees(total)}</span>}
             </h3>
             <div className="flex flex-col">
               {list.map((t) => (

@@ -6,7 +6,7 @@ import { capitalise, dayLabel, rupees } from '../lib/format';
 import { useApi, useStore } from '../lib/store';
 
 function ReviewCard({ t }: { t: Txn }) {
-  const { refresh, openEditor } = useStore();
+  const { refresh, openEditor, categories, showToast } = useStore();
   const [busy, setBusy] = useState(false);
   const learnable = t.merchant_key !== 'unknown';
 
@@ -14,10 +14,12 @@ function ReviewCard({ t }: { t: Txn }) {
     setBusy(true);
     await api.patch(`/api/transactions/${t.id}`, { category_id: categoryId, apply_to_merchant: learnable });
     refresh();
+    const name = capitalise(categories.find((c) => c.id === categoryId)?.name);
+    showToast(learnable ? `${t.merchant} → ${name}, now and in future` : `Filed under ${name}`);
   };
 
   return (
-    <li className={`rounded-2xl bg-card p-4 ${busy ? 'opacity-50' : ''}`}>
+    <li className={`card p-4 ${busy ? 'opacity-50' : ''}`}>
       <button onClick={() => openEditor(t)} className="mb-3 flex w-full items-start justify-between gap-3 text-left">
         <span className="min-w-0">
           <span className="block truncate font-medium">{t.merchant}</span>
@@ -40,7 +42,7 @@ function ReviewCard({ t }: { t: Txn }) {
 function UnparsedCard({ e }: { e: EmailRow }) {
   const { refresh, openEditor } = useStore();
   return (
-    <li className="rounded-2xl bg-card p-4 text-sm">
+    <li className="card p-4 text-sm">
       <p className="font-medium">{e.subject || '(no subject)'}</p>
       <p className="text-xs text-muted">
         {e.from_addr} · {dayLabel(e.received_at.slice(0, 10))}
