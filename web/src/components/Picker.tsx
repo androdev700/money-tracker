@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useBackDismiss } from '../lib/backDismiss';
 
 /** Drag a sheet's top area down to dismiss it, like a native bottom sheet. */
 export function useSwipeToClose(close: () => void) {
@@ -31,6 +32,7 @@ export function useSwipeToClose(close: () => void) {
 /** In-app replacement for native <select> pop-ups: a bottom sheet on phones, a centred panel on desktop. */
 export function Picker({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const swipe = useSwipeToClose(onClose);
+  useBackDismiss(onClose);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();

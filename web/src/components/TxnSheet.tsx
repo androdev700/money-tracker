@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, type EmailRow, type Kind, type MerchantSuggestion, type Txn, type TxnInput } from '../lib/api';
 import { amountToPaise, capitalise, groupAmountInput, nowLocal, rupees } from '../lib/format';
 import { useStore } from '../lib/store';
+import { useBackDismiss } from '../lib/backDismiss';
 import { useSwipeToClose } from './Picker';
 
 export function CategoryChips({ value, onChange, size = 'md' }: { value: number | null; onChange: (id: number) => void; size?: 'sm' | 'md' }) {
@@ -71,6 +72,7 @@ function Sheet({ txn, close, done }: { txn: Partial<Txn>; close: () => void; don
   const [merchantFocused, setMerchantFocused] = useState(false);
   const amountRef = useRef<HTMLInputElement>(null);
   const swipe = useSwipeToClose(close);
+  useBackDismiss(close);
 
   useEffect(() => {
     if (isNew) amountRef.current?.focus();

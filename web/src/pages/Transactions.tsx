@@ -4,6 +4,7 @@ import { Tile } from '../components/Tile';
 import { TxnList } from '../components/TxnList';
 import type { MonthTotal, Txn } from '../lib/api';
 import { capitalise, currentMonth, monthLabel, rupees, rupeesShort } from '../lib/format';
+import { afterSheetCloses } from '../lib/backDismiss';
 import { useApi, useStore } from '../lib/store';
 
 const KINDS = [
@@ -103,8 +104,13 @@ export function TransactionsPage() {
       if (value) next.set(key, value);
       else next.delete(key);
     }
-    navigate(`/transactions${next.size ? `?${next}` : ''}`, { replace: true });
-    setOpen(null);
+    const to = `/transactions${next.size ? `?${next}` : ''}`;
+    if (open) {
+      afterSheetCloses(() => navigate(to, { replace: true }));
+      setOpen(null);
+    } else {
+      navigate(to, { replace: true });
+    }
   };
 
   useEffect(() => {
