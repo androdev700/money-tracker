@@ -5,7 +5,7 @@ A personal tracker for spending only. It reads bank alert emails from a Gmail la
 ## How it works
 
 ```
-Gmail label ──IMAP──▶ emails table ──▶ bank regex parser ──(no match)──▶ Ollama (qwen2.5:3b)
+Gmail label ──IMAP──▶ emails table ──▶ bank regex parser ──(no match)──▶ Ollama (llama3.2:3b)
                                               │
                                               ▼
                    spend / refund / not-spend ▶ dedupe ▶ merchant → category ▶ transactions
@@ -40,7 +40,7 @@ Gmail label ──IMAP──▶ emails table ──▶ bank regex parser ──(
    ```
 5. Put `GMAIL_USER` and `GMAIL_APP_PASSWORD` into `.env`, then run `scripts/install-mac.sh` again. The script:
    - installs Node and Ollama
-   - pulls `qwen2.5:3b` (about 2 GB, fine on 8 GB RAM)
+   - pulls the model in `OLLAMA_MODEL` (default `llama3.2:3b`, about 2 GB, fine on 8 GB RAM)
    - builds the app
    - registers a launchd agent that restarts on crash and at login
    - runs `tailscale serve`

@@ -8,7 +8,9 @@ APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 LABEL=com.money-tracker
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 LOG_DIR="$HOME/Library/Logs/money-tracker"
-MODEL="${OLLAMA_MODEL:-qwen2.5:3b}"
+# Pull the model the app will ask for: .env wins, then the shell, then the default.
+ENV_MODEL="$(grep -E '^OLLAMA_MODEL=' "$APP_DIR/.env" 2>/dev/null | cut -d= -f2 || true)"
+MODEL="${ENV_MODEL:-${OLLAMA_MODEL:-llama3.2:3b}}"
 DOMAIN="gui/$(id -u)"
 
 step() { printf '\n\033[1m▸ %s\033[0m\n' "$*"; }

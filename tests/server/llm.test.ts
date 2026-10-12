@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { config } from '../../server/config.ts';
 import { openDb } from '../../server/db.ts';
 import { processPending, reparse } from '../../server/pipeline/ingest.ts';
 
 // Stands in for Ollama's /api/tags and /api/chat so the fallback path runs without a model.
 function fakeOllama(replies: { extract?: object; category?: string }) {
   return vi.fn(async (url: string, init?: RequestInit) => {
-    if (url.endsWith('/api/tags')) return Response.json({ models: [{ name: 'qwen2.5:3b' }] });
+    if (url.endsWith('/api/tags')) return Response.json({ models: [{ name: config.ollama.model }] });
     const body = JSON.parse(String(init?.body));
     const isExtract = 'is_spend_or_refund' in body.format.properties;
     const content = isExtract ? replies.extract : { category: replies.category ?? 'unknown' };

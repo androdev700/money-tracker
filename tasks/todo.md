@@ -17,7 +17,7 @@
 
 ## 4. Categorisation
 - [x] Merchant normalisation + seed map + learned rules
-- [x] Ollama fallback (qwen2.5:3b)
+- [x] Ollama fallback (llama3.2:3b)
 - [x] Review screen
 
 ## 5. Ship
