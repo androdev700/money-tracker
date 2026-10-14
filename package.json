@@ -13,7 +13,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc --noEmit -p web",
     "parse-report": "node --env-file-if-exists=.env scripts/parse-report.ts",
-    "orders-report": "node --env-file-if-exists=.env scripts/orders-report.ts"
+    "orders-report": "node --env-file-if-exists=.env scripts/orders-report.ts",
+    "reset-data": "node --env-file-if-exists=.env scripts/reset-data.ts"
   },
   "dependencies": {
     "@fastify/static": "^10.1.5",

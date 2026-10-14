@@ -63,6 +63,7 @@ export async function fetchNewEmails(
   opts: { refetch?: boolean; mailbox?: Mailbox; label?: string } = {},
 ): Promise<FetchResult> {
   const kind = opts.mailbox ?? 'transactions';
+  const syncFrom = config.syncFrom ? new Date(`${config.syncFrom}T00:00:00`) : null;
   const imap = client();
   await imap.connect();
   try {
@@ -80,16 +81,20 @@ export async function fetchNewEmails(
       if (cursor.lastUid > 0) {
         range = `${cursor.lastUid + 1}:*`;
       } else {
-        const since = new Date();
-        since.setMonth(since.getMonth() - config.backfillMonths);
+        const since = syncFrom ?? new Date();
+        if (!syncFrom) since.setMonth(since.getMonth() - config.backfillMonths);
         const uids = await imap.search({ since }, { uid: true });
         range = uids || [];
       }
 
+      let seenUid = cursor.lastUid;
       if (typeof range === 'string' || range.length > 0) {
         for await (const msg of imap.fetch(range, { uid: true, emailId: true, source: true, internalDate: true }, { uid: true })) {
           // "N:*" always returns the newest message even when N is past it.
           if (msg.uid <= cursor.lastUid || !msg.source) continue;
+          seenUid = Math.max(seenUid, msg.uid);
+          // An old email labelled today is new to the label but still before the start date.
+          if (syncFrom && msg.internalDate && new Date(msg.internalDate) < syncFrom) continue;
           raw.push({
             uid: msg.uid,
             emailId: msg.emailId ?? `uid-${uidValidity}-${msg.uid}`,
@@ -99,7 +104,7 @@ export async function fetchNewEmails(
         }
       }
 
-      const maxUid = raw.reduce((m, r) => Math.max(m, r.uid), cursor.lastUid);
+      const maxUid = seenUid;
       const insert = db.prepare(
         opts.refetch
           ? `INSERT INTO emails (id, uid, from_addr, subject, received_at, body_text, mailbox) VALUES (?, ?, ?, ?, ?, ?, ?)

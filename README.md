@@ -80,6 +80,7 @@ Orders never create or change amounts. An order with no matching payment waits i
 | Restart | `launchctl kickstart -k gui/$(id -u)/com.money-tracker` |
 | Logs | `tail -f ~/Library/Logs/money-tracker/server.log` |
 | Back up | `sqlite3 data/money.db ".backup ~/money-backup.db"` (or let Time Machine cover `data/`) |
+| Start over from a date | set `SYNC_FROM=2026-10-01` in `.env`, then `npm run reset-data` (preview) and `npm run reset-data -- --yes` (backs up to `data/backups/`, keeps learned rules), then restart |
 | Regex only, no LLM | set `OLLAMA_URL=` in `.env` and restart |
 
 ## Development
