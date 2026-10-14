@@ -11,6 +11,11 @@ interface Cursor {
   lastUid: number;
 }
 
+export type Mailbox = 'transactions' | 'orders';
+
+/** The transactions cursor keeps its original key so existing installs don't re-download everything. */
+const cursorKey = (mailbox: Mailbox) => (mailbox === 'transactions' ? 'imap_cursor' : `imap_cursor:${mailbox}`);
+
 export interface FetchResult {
   fetched: number;
   mailbox: string;
@@ -53,18 +58,22 @@ function bodyText(mail: { html: string | false; text?: string }): string {
  * `refetch` re-downloads the whole backfill window and refreshes stored bodies (after a body-extraction fix);
  * refreshed emails go back to pending so the next sync re-reads them. Your edits still win.
  */
-export async function fetchNewEmails(db: DB, opts: { refetch?: boolean } = {}): Promise<FetchResult> {
+export async function fetchNewEmails(
+  db: DB,
+  opts: { refetch?: boolean; mailbox?: Mailbox; label?: string } = {},
+): Promise<FetchResult> {
+  const kind = opts.mailbox ?? 'transactions';
   const imap = client();
   await imap.connect();
   try {
-    const mailbox = await resolveMailbox(imap, config.gmail.label);
+    const mailbox = await resolveMailbox(imap, opts.label ?? config.gmail.label);
     const lock = await imap.getMailboxLock(mailbox, { readOnly: true });
     const raw: { uid: number; emailId: string; source: Buffer; internalDate: Date }[] = [];
     try {
       const box = imap.mailbox;
       if (!box) throw new Error('mailbox not open');
       const uidValidity = String(box.uidValidity);
-      let cursor = getSetting<Cursor | null>(db, 'imap_cursor', null);
+      let cursor = getSetting<Cursor | null>(db, cursorKey(kind), null);
       if (cursor?.uidValidity !== uidValidity || opts.refetch) cursor = { uidValidity, lastUid: 0 };
 
       let range: string | number[];
@@ -93,23 +102,23 @@ export async function fetchNewEmails(db: DB, opts: { refetch?: boolean } = {}): 
       const maxUid = raw.reduce((m, r) => Math.max(m, r.uid), cursor.lastUid);
       const insert = db.prepare(
         opts.refetch
-          ? `INSERT INTO emails (id, uid, from_addr, subject, received_at, body_text) VALUES (?, ?, ?, ?, ?, ?)
+          ? `INSERT INTO emails (id, uid, from_addr, subject, received_at, body_text, mailbox) VALUES (?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(id) DO UPDATE SET from_addr = excluded.from_addr, subject = excluded.subject, body_text = excluded.body_text,
                parse_status = CASE WHEN emails.body_text = excluded.body_text OR emails.error IS '${DISMISSED}'
                  THEN emails.parse_status ELSE 'pending' END`
-          : `INSERT OR IGNORE INTO emails (id, uid, from_addr, subject, received_at, body_text) VALUES (?, ?, ?, ?, ?, ?)`,
+          : `INSERT OR IGNORE INTO emails (id, uid, from_addr, subject, received_at, body_text, mailbox) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       );
       for (const r of raw) {
         try {
           const mail = await simpleParser(r.source);
           const body = bodyText(mail);
-          insert.run(r.emailId, r.uid, mail.from?.text ?? '', mail.subject ?? '', toLocalIso(mail.date ?? r.internalDate), body);
+          insert.run(r.emailId, r.uid, mail.from?.text ?? '', mail.subject ?? '', toLocalIso(mail.date ?? r.internalDate), body, kind);
         } catch (e) {
           // Keep it visible in Review instead of failing every future sync on the same message.
-          insert.run(r.emailId, r.uid, '', '(could not decode email)', toLocalIso(r.internalDate), `MIME parse error: ${(e as Error).message}`);
+          insert.run(r.emailId, r.uid, '', '(could not decode email)', toLocalIso(r.internalDate), `MIME parse error: ${(e as Error).message}`, kind);
         }
       }
-      setSetting(db, 'imap_cursor', { uidValidity, lastUid: maxUid });
+      setSetting(db, cursorKey(kind), { uidValidity, lastUid: maxUid });
       return { fetched: raw.length, mailbox };
     } finally {
       lock.release();

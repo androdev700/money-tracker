@@ -156,7 +156,7 @@ function setEmailStatus(db: DB, id: string, status: string, parser: string | nul
 export async function processPending(db: DB, opts: Options): Promise<Record<EmailOutcome, number>> {
   const counts: Record<EmailOutcome, number> = { parsed: 0, llm: 0, unparsed: 0, ignored: 0, kept: 0 };
   const pending = db
-    .prepare(`SELECT id, from_addr, subject, received_at, body_text FROM emails WHERE parse_status = 'pending' ORDER BY received_at`)
+    .prepare(`SELECT id, from_addr, subject, received_at, body_text FROM emails WHERE parse_status = 'pending' AND mailbox = 'transactions' ORDER BY received_at`)
     .all() as unknown as EmailRow[];
   for (const email of pending) counts[await processEmail(db, email, opts)]++;
   return counts;
@@ -165,7 +165,8 @@ export async function processPending(db: DB, opts: Options): Promise<Record<Emai
 /** Re-run parsing over stored emails after parser or rule changes. User-edited rows are left alone. */
 export async function reparse(db: DB, opts: Options, where: 'all' | 'unparsed' = 'all') {
   db.prepare(
-    `UPDATE emails SET parse_status = 'pending' WHERE ${where === 'unparsed' ? `parse_status = 'unparsed'` : `error IS NOT '${DISMISSED}'`}`,
+    `UPDATE emails SET parse_status = 'pending'
+     WHERE mailbox = 'transactions' AND ${where === 'unparsed' ? `parse_status = 'unparsed'` : `error IS NOT '${DISMISSED}'`}`,
   ).run();
   return processPending(db, opts);
 }

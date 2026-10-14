@@ -12,7 +12,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
         `SELECT
            (SELECT COUNT(*) FROM transactions WHERE deleted_at IS NULL AND duplicate_of IS NULL AND kind != 'excluded'
               AND (needs_review = 1 OR category_id IS NULL)) AS review,
-           (SELECT COUNT(*) FROM emails WHERE parse_status = 'unparsed') AS unparsed`,
+           (SELECT COUNT(*) FROM emails WHERE parse_status = 'unparsed' AND mailbox = 'transactions') AS unparsed`,
       )
       .get() as { review: number; unparsed: number };
     return {
@@ -124,7 +124,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     db
       .prepare(
         `SELECT id, from_addr, subject, received_at, parse_status, parser, error, substr(body_text, 1, 300) AS snippet
-         FROM emails WHERE parse_status = ? ORDER BY received_at DESC LIMIT 200`,
+         FROM emails WHERE parse_status = ? AND mailbox = 'transactions' ORDER BY received_at DESC LIMIT 200`,
       )
       .all(req.query.status ?? 'unparsed'),
   );

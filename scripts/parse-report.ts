@@ -49,7 +49,7 @@ const rows = sim
   .prepare(
     `SELECT e.id, e.from_addr, e.subject, e.received_at, e.body_text, e.parse_status, e.error,
             t.kind, t.duplicate_of AS dup, t.category_id, t.merchant, t.deleted_at
-     FROM emails e LEFT JOIN transactions t ON t.email_id = e.id ORDER BY e.received_at`,
+     FROM emails e LEFT JOIN transactions t ON t.email_id = e.id WHERE e.mailbox = 'transactions' ORDER BY e.received_at`,
   )
   .all() as Row[];
 

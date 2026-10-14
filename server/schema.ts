@@ -80,4 +80,46 @@ export const migrations: string[] = [
   UPDATE OR REPLACE merchant_rules SET merchant_key = replace(merchant_key, ' ', '') WHERE merchant_key NOT LIKE '%@%';
   UPDATE transactions SET merchant_key = replace(merchant_key, ' ', '') WHERE merchant_key NOT LIKE '%@%';
   `,
+  `
+  ALTER TABLE emails ADD COLUMN mailbox TEXT NOT NULL DEFAULT 'transactions';
+  CREATE INDEX ix_emails_mailbox ON emails(mailbox, parse_status);
+
+  CREATE TABLE orders (
+    id INTEGER PRIMARY KEY,
+    email_id TEXT NOT NULL UNIQUE REFERENCES emails(id),
+    source TEXT NOT NULL,
+    store TEXT,
+    order_ref TEXT,
+    ordered_at TEXT NOT NULL,
+    total_paise INTEGER NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('food','grocery','retail')),
+    txn_id INTEGER REFERENCES transactions(id),
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','matched','unmatched','dismissed')),
+    extracted_by TEXT NOT NULL DEFAULT 'parser',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE UNIQUE INDEX ux_orders_ref ON orders(source, order_ref) WHERE order_ref IS NOT NULL;
+  CREATE UNIQUE INDEX ux_orders_txn ON orders(txn_id) WHERE txn_id IS NOT NULL;
+  CREATE INDEX ix_orders_status ON orders(status, ordered_at);
+
+  CREATE TABLE order_items (
+    id INTEGER PRIMARY KEY,
+    order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    qty INTEGER NOT NULL DEFAULT 1,
+    price_paise INTEGER,
+    category_id INTEGER REFERENCES categories(id),
+    categorised_by TEXT
+  );
+  CREATE INDEX ix_order_items_order ON order_items(order_id);
+
+  CREATE TABLE item_rules (
+    item_key TEXT PRIMARY KEY,
+    category_id INTEGER NOT NULL REFERENCES categories(id),
+    source TEXT NOT NULL CHECK (source IN ('user','llm')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  ALTER TABLE transactions ADD COLUMN label TEXT;
+  `,
 ];

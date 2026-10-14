@@ -11,6 +11,7 @@ export const config = {
     user: env.GMAIL_USER || '',
     password: (env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, ''),
     label: env.GMAIL_LABEL || 'transactions',
+    ordersLabel: env.GMAIL_ORDERS_LABEL || '',
   },
   backfillMonths: Number(env.BACKFILL_MONTHS || 6),
   syncIntervalMin: Number(env.SYNC_INTERVAL_MIN || 15),
