@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { EmojiField } from '../components/EmojiPicker';
 import { api, type Rule, type Status, type SyncStatus } from '../lib/api';
 import { capitalise, relativeTime } from '../lib/format';
 import { useApi, useStore } from '../lib/store';
@@ -122,12 +123,7 @@ function CategoriesCard() {
       <ul className="flex flex-col divide-y divide-line">
         {categories.map((c) => (
           <li key={c.id} className={`flex items-center gap-2 py-2 ${c.archived ? 'opacity-50' : ''}`}>
-            <input
-              defaultValue={c.icon}
-              onBlur={(e) => e.target.value && e.target.value !== c.icon && update(c.id, { icon: e.target.value })}
-              className="w-10 rounded-lg bg-transparent text-center text-lg"
-              aria-label={`${c.name} icon`}
-            />
+            <EmojiField value={c.icon} onChange={(icon) => icon !== c.icon && update(c.id, { icon })} label={`Change ${c.name} icon`} />
             <input
               defaultValue={capitalise(c.name)}
               onBlur={(e) => e.target.value.trim() && e.target.value.trim().toLowerCase() !== c.name && update(c.id, { name: e.target.value })}
@@ -141,7 +137,7 @@ function CategoriesCard() {
         ))}
       </ul>
       <form
-        className="mt-3 flex gap-2"
+        className="mt-3 flex items-center gap-2"
         onSubmit={async (e) => {
           e.preventDefault();
           setError(null);
@@ -155,7 +151,7 @@ function CategoriesCard() {
           }
         }}
       >
-        <input value={icon} onChange={(e) => setIcon(e.target.value)} placeholder="🙂" className="w-12 rounded-xl border border-line bg-bg px-2 py-2 text-center" aria-label="New category icon" />
+        <EmojiField value={icon} onChange={setIcon} label="Pick an icon for the new category" />
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="New category" className="min-w-0 flex-1 rounded-xl border border-line bg-bg px-3 py-2" />
         <button className={btn} disabled={!name.trim()}>
           Add
