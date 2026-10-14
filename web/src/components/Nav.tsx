@@ -18,7 +18,7 @@ const ITEMS: { path: string; label: string; icon: ReactNode }[] = [
 export function Nav() {
   const { path, navigate } = useStore();
   const { data: status } = useApi<Status>('/api/status');
-  const badge = (status?.reviewCount ?? 0) + (status?.unparsedCount ?? 0);
+  const badge = (status?.reviewCount ?? 0) + (status?.unparsedCount ?? 0) + (status?.unmatchedOrders ?? 0);
 
   const item = (it: (typeof ITEMS)[number], variant: 'bar' | 'side') => {
     const active = path === it.path;

@@ -5,7 +5,9 @@ import { Tile } from './Tile';
 
 export function TxnRow({ t }: { t: Txn }) {
   const { openEditor } = useStore();
+  // With an order label ("Lunch", "Groceries") the shop moves to the second line.
   const sub = [
+    t.label ? (t.order_store ?? t.merchant) : null,
     t.kind === 'excluded' ? t.exclude_reason : capitalise(t.category_name) || 'Uncategorised',
     timeLabel(t.txn_at),
     t.instrument && t.account_last4 ? `${t.instrument} ••${t.account_last4}` : t.source === 'manual' ? 'Added by you' : t.instrument,
@@ -16,7 +18,7 @@ export function TxnRow({ t }: { t: Txn }) {
       <Tile icon={t.kind === 'excluded' ? '⇄' : t.category_icon} color={t.kind === 'excluded' ? null : t.category_color} />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5">
-          <span className={`truncate font-medium ${t.kind === 'excluded' || t.duplicate_of ? 'text-muted line-through decoration-1' : ''}`}>{t.merchant}</span>
+          <span className={`truncate font-medium ${t.kind === 'excluded' || t.duplicate_of ? 'text-muted line-through decoration-1' : ''}`}>{t.label ?? t.merchant}</span>
           {t.kind === 'refund' && <Pill>refund</Pill>}
           {t.duplicate_of && <Pill>duplicate</Pill>}
           {!!t.needs_review && t.kind !== 'excluded' && !t.duplicate_of && <Pill tone="warn">review</Pill>}

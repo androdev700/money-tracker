@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { config, gmailConfigured } from '../config.ts';
 import { getSetting, setSetting, type DB } from '../db.ts';
 import { ollamaAvailable } from '../llm/ollama.ts';
+import { reparseOrders } from '../orders/ingest.ts';
 import { DISMISSED, reparse } from '../pipeline/ingest.ts';
 import { exclusive, isSyncing, syncNow } from '../sync.ts';
 
@@ -12,15 +13,17 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
         `SELECT
            (SELECT COUNT(*) FROM transactions WHERE deleted_at IS NULL AND duplicate_of IS NULL AND kind != 'excluded'
               AND (needs_review = 1 OR category_id IS NULL)) AS review,
-           (SELECT COUNT(*) FROM emails WHERE parse_status = 'unparsed' AND mailbox = 'transactions') AS unparsed`,
+           (SELECT COUNT(*) FROM emails WHERE parse_status = 'unparsed' AND mailbox = 'transactions') AS unparsed,
+           (SELECT COUNT(*) FROM orders WHERE status = 'unmatched') AS orders`,
       )
-      .get() as { review: number; unparsed: number };
+      .get() as { review: number; unparsed: number; orders: number };
     return {
       lastSync: getSetting(db, 'last_sync', null),
       syncing: isSyncing(),
       gmail: { configured: gmailConfigured(), user: config.gmail.user, label: config.gmail.label },
       ollama: { enabled: Boolean(config.ollama.url), available: await ollamaAvailable(), model: config.ollama.model },
       reviewCount: counts.review,
+      unmatchedOrders: counts.orders,
       unparsedCount: counts.unparsed,
     };
   });
@@ -28,7 +31,12 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
   app.post('/api/sync', async () => syncNow(db));
 
   app.post<{ Body: { scope?: 'all' | 'unparsed' } }>('/api/reparse', async (req) =>
-    exclusive(async () => reparse(db, { useLlm: await ollamaAvailable() }, req.body?.scope === 'unparsed' ? 'unparsed' : 'all')),
+    exclusive(async () => {
+      const useLlm = await ollamaAvailable();
+      const counts = await reparse(db, { useLlm }, req.body?.scope === 'unparsed' ? 'unparsed' : 'all');
+      const orders = await reparseOrders(db, { useLlm });
+      return { ...counts, orders: orders.order + orders.llm, 'linked to orders': orders.matched };
+    }),
   );
 
   app.get('/api/categories', async () => db.prepare('SELECT * FROM categories ORDER BY archived, sort, name').all());

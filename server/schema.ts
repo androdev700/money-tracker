@@ -122,4 +122,8 @@ export const migrations: string[] = [
 
   ALTER TABLE transactions ADD COLUMN label TEXT;
   `,
+  // 'user' links survive a re-read of order emails; automatic ones are rebuilt.
+  `
+  ALTER TABLE orders ADD COLUMN linked_by TEXT CHECK (linked_by IN ('auto','user'));
+  `,
 ];

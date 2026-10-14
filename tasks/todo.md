@@ -46,9 +46,9 @@
   - launchd + Tailscale (meant for the mini, not this Mac)
 
 ## 6. Orders (what each spend bought)
-- [ ] Fetch the Orders label (per-label cursor, emails.mailbox) + `npm run orders-report`
-- [ ] Order parsers: Swiggy/Instamart, Zomato/Blinkit, Amazon/Fresh/Now, Zepto, Flipkart + LLM fallback
-- [ ] Item categories: item rules → keyword map → LLM (cached)
-- [ ] Match orders ↔ spends; label (meal / Groceries / item) + category; unmatched → Review
-- [ ] UI: label on rows, "What you bought" in sheet, Review section, link/add
+- [x] Fetch the Orders label (per-label cursor, emails.mailbox) + `npm run orders-report`
+- [x] Order parsers: Swiggy/Instamart, Zomato/Blinkit, Amazon/Fresh/Now, Zepto, Flipkart + LLM fallback
+- [x] Item categories: item rules → keyword map → LLM (cached)
+- [x] Match orders ↔ spends; label (meal / Groceries / item) + category; unmatched → Review
+- [x] UI: label on rows, "What you bought" in sheet, Review section, link/add
 - [ ] Tune against the real orders-report from the mini

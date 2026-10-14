@@ -3,6 +3,7 @@ import { categorise } from '../classify/categorise.ts';
 import { normaliseMerchant } from '../classify/merchant.ts';
 import { tx, type DB } from '../db.ts';
 import { toLocalIso } from '../parsers/common.ts';
+import { linkOrder } from '../orders/link.ts';
 import { applyMerchantRule } from '../pipeline/ingest.ts';
 
 const MONTH = /^\d{4}-\d{2}$/;
@@ -12,9 +13,10 @@ const SIGNED = `CASE WHEN t.kind = 'refund' THEN -t.amount_paise ELSE t.amount_p
 const TXN_SELECT = `
   SELECT t.id, t.email_id, t.source, t.txn_at, t.amount_paise, t.merchant, t.merchant_key, t.category_id,
          t.kind, t.exclude_reason, t.instrument, t.bank, t.account_last4, t.ref_no, t.note, t.categorised_by,
-         t.needs_review, t.user_edited, t.duplicate_of,
-         c.name AS category_name, c.icon AS category_icon, c.color AS category_color
-  FROM transactions t LEFT JOIN categories c ON c.id = t.category_id`;
+         t.needs_review, t.user_edited, t.duplicate_of, t.label,
+         c.name AS category_name, c.icon AS category_icon, c.color AS category_color,
+         o.id AS order_id, o.store AS order_store
+  FROM transactions t LEFT JOIN categories c ON c.id = t.category_id LEFT JOIN orders o ON o.txn_id = t.id`;
 
 function prevMonth(month: string) {
   const [y, m] = month.split('-').map(Number);
@@ -31,6 +33,7 @@ interface TxnBody {
   email_id?: string;
   apply_to_merchant?: boolean;
   not_duplicate?: boolean;
+  order_id?: number;
 }
 
 const txnBodySchema = {
@@ -46,6 +49,7 @@ const txnBodySchema = {
     email_id: { type: 'string' },
     apply_to_merchant: { type: 'boolean' },
     not_duplicate: { type: 'boolean' },
+    order_id: { type: 'integer' },
   },
 };
 
@@ -142,9 +146,10 @@ export function transactionRoutes(app: FastifyInstance, db: DB) {
     }
     if (review === '1') where.push(`t.kind != 'excluded' AND t.duplicate_of IS NULL AND (t.needs_review = 1 OR t.category_id IS NULL)`);
     if (q?.trim()) {
-      where.push('(t.merchant LIKE ? OR t.note LIKE ? OR t.merchant_key LIKE ?)');
+      where.push(`(t.merchant LIKE ?1 OR t.note LIKE ?1 OR t.merchant_key LIKE ?1 OR t.label LIKE ?1 OR o.store LIKE ?1
+        OR EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id = o.id AND oi.name LIKE ?1))`.replaceAll('?1', '?'));
       const like = `%${q.trim()}%`;
-      args.push(like, like, like);
+      args.push(like, like, like, like, like, like);
     }
     const limit = Math.min(Number(req.query.limit) || 500, 2000);
     return db.prepare(`${TXN_SELECT} WHERE ${where.join(' AND ')} ORDER BY t.txn_at DESC, t.id DESC LIMIT ${limit}`).all(...args);
@@ -185,6 +190,7 @@ export function transactionRoutes(app: FastifyInstance, db: DB) {
         return Number(res.lastInsertRowid);
       });
       if (b.apply_to_merchant && b.category_id) applyMerchantRule(db, merchant.key, b.category_id, null);
+      if (b.order_id) linkOrder(db, b.order_id, id);
       return reply.code(201).send(db.prepare(`${TXN_SELECT} WHERE t.id = ?`).get(id));
     },
   );

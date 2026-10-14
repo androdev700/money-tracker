@@ -2,6 +2,7 @@ import { config, gmailConfigured } from './config.ts';
 import { setSetting, type DB } from './db.ts';
 import { fetchNewEmails } from './gmail/imap.ts';
 import { ollamaAvailable } from './llm/ollama.ts';
+import { processPendingOrders } from './orders/ingest.ts';
 import { processPending } from './pipeline/ingest.ts';
 
 export interface SyncStatus {
@@ -9,6 +10,8 @@ export interface SyncStatus {
   ok: boolean;
   fetched?: number;
   counts?: Record<string, number>;
+  orders?: Record<string, number>;
+  ordersError?: string;
   error?: string;
 }
 
@@ -36,8 +39,19 @@ async function run(db: DB): Promise<SyncStatus> {
   try {
     if (!gmailConfigured()) throw new Error('Gmail is not configured: set GMAIL_USER and GMAIL_APP_PASSWORD in .env');
     const { fetched } = await fetchNewEmails(db);
-    const counts = await processPending(db, { useLlm: await ollamaAvailable() });
-    status = { at: new Date().toISOString(), ok: true, fetched, counts };
+    const useLlm = await ollamaAvailable();
+    const counts = await processPending(db, { useLlm });
+    // Orders only add detail, so a problem with that label is reported without failing the sync.
+    let ordersError: string | undefined;
+    if (config.gmail.ordersLabel) {
+      try {
+        await fetchNewEmails(db, { mailbox: 'orders', label: config.gmail.ordersLabel });
+      } catch (e) {
+        ordersError = (e as Error).message;
+      }
+    }
+    const orders = await processPendingOrders(db, { useLlm });
+    status = { at: new Date().toISOString(), ok: true, fetched, counts, orders, ...(ordersError && { ordersError }) };
   } catch (e) {
     status = { at: new Date().toISOString(), ok: false, error: (e as Error).message };
   }

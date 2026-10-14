@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { api, type EmailRow, type Kind, type MerchantSuggestion, type Txn, type TxnInput } from '../lib/api';
+import { api, type EmailRow, type Kind, type MerchantSuggestion, type Order, type OrderItem, type Txn, type TxnInput } from '../lib/api';
 import { amountToPaise, capitalise, groupAmountInput, nowLocal, rupees } from '../lib/format';
 import { useStore } from '../lib/store';
 import { useBackDismiss } from '../lib/backDismiss';
@@ -118,7 +118,7 @@ function Sheet({ txn, close, done }: { txn: Partial<Txn>; close: () => void; don
     const body: TxnInput = { amount_paise: paise, merchant: merchant.trim(), txn_at: when, category_id: categoryId, note: note.trim() || null, kind };
     const learn = canLearn && categoryChanged && applyAll;
     try {
-      if (isNew) await api.post('/api/transactions', { ...body, email_id: txn.email_id ?? undefined });
+      if (isNew) await api.post('/api/transactions', { ...body, email_id: txn.email_id ?? undefined, order_id: txn.order_id ?? undefined });
       else await api.patch(`/api/transactions/${txn.id}`, { ...body, apply_to_merchant: learn });
       done();
       close();
@@ -307,6 +307,8 @@ function Sheet({ txn, close, done }: { txn: Partial<Txn>; close: () => void; don
             <input id="note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional" className={field} />
           </div>
 
+          {txn.order_id && <OrderItems txn={txn} onChange={done} onRemoved={() => (done(), close())} />}
+
           {!isNew && (
             <div className="flex flex-col gap-3 rounded-2xl border border-line p-4 text-xs text-muted">
               <p>
@@ -347,5 +349,84 @@ function Sheet({ txn, close, done }: { txn: Partial<Txn>; close: () => void; don
         </div>
       </form>
     </div>
+  );
+}
+
+/** "What you bought": the order behind this spend. Re-filing an item teaches that product's category. */
+function OrderItems({ txn, onChange, onRemoved }: { txn: Partial<Txn>; onChange: () => void; onRemoved: () => void }) {
+  const { showToast } = useStore();
+  const [order, setOrder] = useState<Order | null>(null);
+  const [editing, setEditing] = useState<number | null>(null);
+  const isNew = !txn.id;
+
+  useEffect(() => {
+    if (isNew) return;
+    api.get<Order | null>(`/api/transactions/${txn.id}/order`).then(setOrder).catch(() => {});
+  }, [txn.id, isNew]);
+
+  if (isNew) return <p className="-mt-2 text-xs text-muted">This spend will be linked to the order you picked in Review.</p>;
+  if (!order) return null;
+
+  async function recategorise(item: OrderItem, categoryId: number) {
+    const res = await api.patch<{ items: OrderItem[] }>(`/api/order-items/${item.id}`, { category_id: categoryId });
+    setOrder((o) => (o ? { ...o, items: res.items } : o));
+    setEditing(null);
+    onChange();
+    showToast(`${item.name.slice(0, 28)} filed — remembered for next time`);
+  }
+
+  async function unlink() {
+    await api.post(`/api/orders/${order!.id}/unlink`);
+    onRemoved();
+    showToast('Order details removed from this spend');
+  }
+
+  return (
+    <section className="flex flex-col gap-2">
+      <div className="flex items-baseline justify-between">
+        <span className={label}>What you bought</span>
+        <span className="text-xs text-muted">{order.store ?? order.source}</span>
+      </div>
+      <ul className="flex flex-col divide-y divide-line rounded-2xl border border-line bg-card">
+        {order.items.map((item) => (
+          <li key={item.id} className="px-3 py-2.5">
+            <div className="flex items-center gap-3">
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm break-words">
+                  {item.name}
+                  {item.qty > 1 && <span className="text-muted"> ×{item.qty}</span>}
+                </span>
+                {item.price_paise !== null && <span className="block text-xs text-muted">{rupees(item.price_paise * item.qty)}</span>}
+              </span>
+              {order.kind !== 'food' && (
+                <button
+                  type="button"
+                  onClick={() => setEditing(editing === item.id ? null : item.id)}
+                  aria-expanded={editing === item.id}
+                  className="flex shrink-0 items-center gap-1 rounded-full border border-line py-0.5 pr-2.5 pl-0.5 text-xs"
+                >
+                  <span className="tile size-6 rounded-full text-xs" style={{ '--tile': item.category_color } as React.CSSProperties} aria-hidden>
+                    {item.category_icon ?? '❔'}
+                  </span>
+                  {capitalise(item.category_name) || 'Pick'}
+                </button>
+              )}
+            </div>
+            {editing === item.id && (
+              <div className="mt-2">
+                <CategoryChips value={item.category_id} onChange={(id) => recategorise(item, id)} size="sm" />
+              </div>
+            )}
+          </li>
+        ))}
+        <li className="flex justify-between px-3 py-2 text-sm">
+          <span className="text-muted">Order total</span>
+          <span className="font-semibold">{rupees(order.total_paise)}</span>
+        </li>
+      </ul>
+      <button type="button" onClick={unlink} className="self-start text-xs text-ink-2">
+        Not this order? Remove its details
+      </button>
+    </section>
   );
 }

@@ -32,6 +32,9 @@ export interface Txn {
   category_name: string | null;
   category_icon: string | null;
   category_color: string | null;
+  label: string | null;
+  order_id: number | null;
+  order_store: string | null;
 }
 
 export interface Summary {
@@ -60,6 +63,44 @@ export interface Status {
   ollama: { enabled: boolean; available: boolean; model: string };
   reviewCount: number;
   unparsedCount: number;
+  unmatchedOrders: number;
+}
+
+export interface OrderItem {
+  id: number;
+  name: string;
+  qty: number;
+  price_paise: number | null;
+  category_id: number | null;
+  categorised_by: string | null;
+  category_name: string | null;
+  category_icon: string | null;
+  category_color: string | null;
+}
+
+export interface Order {
+  id: number;
+  source: string;
+  store: string | null;
+  ordered_at: string;
+  total_paise: number;
+  kind: 'food' | 'grocery' | 'retail';
+  txn_id: number | null;
+  status: string;
+  extracted_by: string;
+  items: OrderItem[];
+  suggested?: { label: string | null; categoryId: number | null };
+}
+
+export interface Candidate {
+  id: number;
+  txn_at: string;
+  amount_paise: number;
+  merchant: string;
+  label: string | null;
+  category_icon: string | null;
+  category_color: string | null;
+  category_name: string | null;
 }
 
 export interface Rule {
@@ -104,6 +145,7 @@ export interface TxnInput {
   email_id?: string;
   apply_to_merchant?: boolean;
   not_duplicate?: boolean;
+  order_id?: number;
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {

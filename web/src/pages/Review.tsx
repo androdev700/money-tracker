@@ -1,9 +1,97 @@
 import { useState } from 'react';
+import { OptionRow, Picker } from '../components/Picker';
+import { Tile } from '../components/Tile';
 import { CategoryChips } from '../components/TxnSheet';
 import { Pill } from '../components/TxnList';
-import { api, type EmailRow, type Txn } from '../lib/api';
-import { capitalise, dayLabel, rupees } from '../lib/format';
+import { api, type Candidate, type EmailRow, type Order, type Txn } from '../lib/api';
+import { capitalise, dayLabel, rupees, timeLabel } from '../lib/format';
 import { useApi, useStore } from '../lib/store';
+
+/** An order whose payment we couldn't find: add it as a spend, attach it to one, or drop it. */
+function OrderCard({ o }: { o: Order }) {
+  const { refresh, openEditor, categories, showToast } = useStore();
+  const [linking, setLinking] = useState(false);
+  const [candidates, setCandidates] = useState<Candidate[] | null>(null);
+  const cat = categories.find((c) => c.id === o.suggested?.categoryId);
+  const store = o.store ?? capitalise(o.source);
+
+  async function openLinking() {
+    setLinking(true);
+    setCandidates(await api.get<Candidate[]>(`/api/orders/${o.id}/candidates`));
+  }
+
+  async function link(c: Candidate) {
+    await api.post(`/api/orders/${o.id}/link`, { txn_id: c.id });
+    setLinking(false);
+    refresh();
+    showToast(`Linked to ${c.label ?? c.merchant}`);
+  }
+
+  return (
+    <li className="card p-4">
+      <div className="flex items-start gap-3">
+        <Tile icon={cat?.icon} color={cat?.color} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-medium">{o.suggested?.label ?? store}</span>
+          <span className="block truncate text-xs text-muted">
+            {store} · {dayLabel(o.ordered_at.slice(0, 10))} {timeLabel(o.ordered_at)}
+          </span>
+        </span>
+        <span className="shrink-0 font-semibold">{rupees(o.total_paise)}</span>
+      </div>
+      <ul className="mt-2 ml-14 text-xs text-ink-2">
+        {o.items.slice(0, 4).map((i) => (
+          <li key={i.id} className="truncate">
+            {i.name}
+            {i.qty > 1 && ` ×${i.qty}`}
+          </li>
+        ))}
+        {o.items.length > 4 && <li className="text-muted">+{o.items.length - 4} more</li>}
+      </ul>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          onClick={() =>
+            openEditor({ amount_paise: o.total_paise, merchant: store, txn_at: o.ordered_at, category_id: o.suggested?.categoryId ?? null, order_id: o.id })
+          }
+          className="rounded-full bg-accent px-3.5 py-1.5 text-sm font-semibold text-on-accent"
+        >
+          Add as spend
+        </button>
+        <button onClick={openLinking} className="rounded-full border border-line px-3.5 py-1.5 text-sm font-medium">
+          Link to a spend
+        </button>
+        <button
+          onClick={async () => {
+            await api.post(`/api/orders/${o.id}/dismiss`);
+            refresh();
+            showToast('Order ignored');
+          }}
+          className="px-2 py-1.5 text-sm text-ink-2"
+        >
+          Not mine
+        </button>
+      </div>
+      {linking && (
+        <Picker title="Which spend paid for it?" onClose={() => setLinking(false)}>
+          {!candidates && <p className="py-6 text-center text-sm text-muted">Looking…</p>}
+          {candidates?.length === 0 && <p className="py-6 text-center text-sm text-muted">No spend of {rupees(o.total_paise)} within a week of this order.</p>}
+          <div className="flex flex-col gap-1">
+            {candidates?.map((c) => (
+              <OptionRow
+                key={c.id}
+                selected={false}
+                title={`${c.label ?? c.merchant} · ${rupees(c.amount_paise)}`}
+                detail={`${dayLabel(c.txn_at.slice(0, 10))} ${timeLabel(c.txn_at)} · ${capitalise(c.category_name) || 'Uncategorised'}`}
+                leading={<Tile icon={c.category_icon} color={c.category_color} size="sm" />}
+                onClick={() => link(c)}
+              />
+            ))}
+          </div>
+        </Picker>
+      )}
+    </li>
+  );
+}
 
 function ReviewCard({ t }: { t: Txn }) {
   const { refresh, openEditor, categories, showToast } = useStore();
@@ -69,8 +157,9 @@ function UnparsedCard({ e }: { e: EmailRow }) {
 export function ReviewPage() {
   const { data: txns } = useApi<Txn[]>('/api/transactions?review=1&kind=all');
   const { data: emails } = useApi<EmailRow[]>('/api/emails?status=unparsed');
+  const { data: orders } = useApi<Order[]>('/api/orders?status=unmatched');
 
-  const empty = txns?.length === 0 && emails?.length === 0;
+  const empty = txns?.length === 0 && emails?.length === 0 && orders?.length === 0;
 
   return (
     <div className="flex flex-col gap-5">
@@ -85,6 +174,17 @@ export function ReviewPage() {
           <ul className="flex flex-col gap-3">
             {txns.map((t) => (
               <ReviewCard key={t.id} t={t} />
+            ))}
+          </ul>
+        </section>
+      )}
+      {!!orders?.length && (
+        <section>
+          <h2 className="mb-2 text-sm font-medium text-ink-2">Orders without a payment ({orders.length})</h2>
+          <p className="mb-3 text-xs text-muted">Paid by cash, a wallet, or a card whose alerts don’t reach Gmail.</p>
+          <ul className="flex flex-col gap-3">
+            {orders.map((o) => (
+              <OrderCard key={o.id} o={o} />
             ))}
           </ul>
         </section>

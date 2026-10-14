@@ -91,3 +91,35 @@ export async function categoriseWithLlm(merchant: string, context: string, categ
   );
   return out && out.category !== 'unknown' ? out.category : null;
 }
+
+export interface LlmOrder {
+  is_purchase: boolean;
+  store: string;
+  total: number;
+  ordered_at: string;
+  items: { name: string; qty: number; price: number }[];
+}
+
+export function extractOrderWithLlm(subject: string, body: string): Promise<LlmOrder | null> {
+  return chat<LlmOrder>(
+    'You read Indian purchase, booking, subscription and bill emails and extract what was bought. Amounts are in INR. ' +
+      'total is the amount actually paid. ordered_at is "YYYY-MM-DD HH:MM" when stated, else "". ' +
+      'items are the products or services bought (for a subscription or bill, one item naming it). ' +
+      'Set is_purchase false for shipping/delivery updates, refunds, OTPs, offers, surveys and account notices.',
+    `Subject: ${subject}\n\n${body.slice(0, 3000)}`,
+    {
+      type: 'object',
+      properties: {
+        is_purchase: { type: 'boolean' },
+        store: { type: 'string' },
+        total: { type: 'number' },
+        ordered_at: { type: 'string' },
+        items: {
+          type: 'array',
+          items: { type: 'object', properties: { name: { type: 'string' }, qty: { type: 'number' }, price: { type: 'number' } }, required: ['name', 'qty', 'price'] },
+        },
+      },
+      required: ['is_purchase', 'store', 'total', 'ordered_at', 'items'],
+    },
+  );
+}

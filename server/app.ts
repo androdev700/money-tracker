@@ -4,12 +4,14 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { DB } from './db.ts';
 import { adminRoutes } from './routes/admin.ts';
+import { orderRoutes } from './routes/orders.ts';
 import { transactionRoutes } from './routes/transactions.ts';
 
 export async function buildApp(db: DB, opts: { logger?: boolean } = {}) {
   const app = Fastify({ logger: opts.logger ? { level: 'info' } : false });
   transactionRoutes(app, db);
   adminRoutes(app, db);
+  orderRoutes(app, db);
 
   const webRoot = resolve(import.meta.dirname, '../dist/web');
   if (existsSync(webRoot)) {

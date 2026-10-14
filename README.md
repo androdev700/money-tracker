@@ -27,6 +27,23 @@ Gmail label ──IMAP──▶ emails table ──▶ bank regex parser ──(
 - **Categories:** your merchant rules apply first, then a built-in keyword map, then the LLM. Anything guessed or unknown waits in **Review**. Picking a category there saves a rule, so that merchant is never asked about again.
 - **Your changes are final:** edits and deletes are never overwritten by a sync or a re-read.
 
+## Orders: what each spend bought
+
+Set `GMAIL_ORDERS_LABEL` (e.g. `Orders`) and the app also reads order confirmations from that label:
+- **Read directly:** Swiggy, Instamart, Zomato, Amazon, Flipkart, Decathlon and BookMyShow.
+- **Other senders:** handled by the local model, but only when an email looks like a purchase with an amount.
+
+Each order is matched to the spend that paid for it: the same amount (±₹1), close in time, preferring a spend named like the shop. The spend then gets a label and a category:
+- **Food:** one dish names the spend; several dishes make it a meal (Breakfast, Lunch, Snacks, Dinner, Late-night).
+- **Groceries:** a basket of several grocery items is labelled "Groceries".
+- **Everything else:** each item gets a category (a mop goes to Home, a coolant to Vehicle), and the spend takes the category of its largest item.
+
+Open a spend to see **What you bought**. Re-filing an item there is remembered for that product.
+
+Orders never create or change amounts. An order with no matching payment waits in **Review**, where you can add it as a spend, link it to one, or ignore it.
+
+`npm run orders-report` is a dry run. It shows every order read, the spend it matched and the label it would get, plus the order emails nothing could read.
+
 ## Setup on the Mac mini
 
 1. **Gmail label.** Make sure your bank alerts land in the `transactions` label. If they don't, create a Gmail filter for the bank senders that applies the label, ticking "also apply to matching conversations":
