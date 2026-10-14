@@ -14,7 +14,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
            (SELECT COUNT(*) FROM transactions WHERE deleted_at IS NULL AND duplicate_of IS NULL AND kind != 'excluded'
               AND (needs_review = 1 OR category_id IS NULL)) AS review,
            (SELECT COUNT(*) FROM emails WHERE parse_status = 'unparsed' AND mailbox = 'transactions') AS unparsed,
-           (SELECT COUNT(*) FROM orders WHERE status = 'unmatched') AS orders`,
+           (SELECT COUNT(*) FROM orders WHERE status = 'unmatched' AND extracted_by != 'llm') AS orders`,
       )
       .get() as { review: number; unparsed: number; orders: number };
     return {

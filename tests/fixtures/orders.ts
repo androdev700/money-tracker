@@ -91,3 +91,31 @@ export const bookmyshow: OrderEmail = {
   receivedAt: '2026-10-02T14:20:00',
   body: 'Your booking is confirmed! Booking ID WRPJ000 Sample Movie The Conclusion (UA16+) 09:30am | Sat, 3 Oct, 2026 Cinepolis: Sample Mall, Bengaluru(SCREEN 06) PREMIUM - H12, H13 SCREEN 06 ORDER SUMMARY TICKET AMOUNT Quantity Rs.700.00 2 tickets Convenience fees Rs.115.64 DISCOUNT Rs.350.00 AMOUNT PAID Rs.488.06 Booking Date & Time Fri, 2 Oct, 2026 | 02:18pm Payment Type Credit Card/Debit Card Confirmation# 2400000',
 };
+
+export const decathlonConfirmed: OrderEmail = {
+  from: 'Decathlon <noreply-decathlonindia@decathlon.com>',
+  subject: 'Your Decathlon Order 28600001 is Confirmed',
+  receivedAt: '2026-05-28T23:12:00',
+  body: 'Thank you for your order! Hello A Customer, Order details Package ID : 28600001 Delivery Date : 30th May, 2026 Men Gym Trackpant Convertible, Jog Fit, Quick Dry, Zip Pockets, 500 - Black Qty:1 ₹999 Order value (1 items) ₹999 Overall Discount - ₹0 Convenience fee ₹49 Total ₹1,048',
+};
+
+export const amazonCancelled: OrderEmail = {
+  from: 'Amazon.in <payments-update@amazon.in>',
+  subject: 'Item cancelled: "Prestige Microfiber Mop..."',
+  receivedAt: '2026-10-13T04:28:00',
+  body: `Item cancelled${PAD} YOUR ITEMS WERE CANCELLED Cancelled If you were charged, a refund will be processed. Order # ‫406-0000000-0000001 View order details Prestige Microfiber Spin Mop wi... Quantity: 1 ₹43900`,
+};
+
+export const razorpayInOrders: OrderEmail = {
+  from: 'Razorpay <no-reply@razorpay.com>',
+  subject: 'Payment successful for SomeShop',
+  receivedAt: '2026-06-08T19:35:00',
+  body: 'SomeShop ₹1,700.00 Paid Successfully Payment Id pay_ABC Method card XXXX-XXXX-XXXX-0001 Paid On 08 Jun, 2026 07:35:17 PM IST',
+};
+
+export const broadbandBill: OrderEmail = {
+  from: 'ACT <no-reply@mailer22.actcorp.in>',
+  subject: 'ACT Fibernet Invoice for September 2026',
+  receivedAt: '2026-09-01T20:54:00',
+  body: 'Your Monthly ACT Fibernet bill has been generated. Pay before due date to avoid interruption AMOUNT DUE BILL DATE ₹ 1180.00 SEPTEMBER 01, 2026 DUE: SEPTEMBER 23, 2026 PAY NOW',
+};

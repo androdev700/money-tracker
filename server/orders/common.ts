@@ -27,7 +27,11 @@ export interface OrderEmail {
   body: string;
 }
 
-export type OrderParse = { status: 'order'; order: ParsedOrder } | { status: 'ignored'; reason: string } | { status: 'unparsed'; reason: string };
+export type OrderParse =
+  | { status: 'order'; order: ParsedOrder }
+  | { status: 'cancelled'; source: string; orderRef: string }
+  | { status: 'ignored'; reason: string }
+  | { status: 'unparsed'; reason: string };
 
 export interface OrderParser {
   source: string;

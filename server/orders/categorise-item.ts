@@ -9,17 +9,24 @@ const ITEM_SEED: { category: string; prefix: string[]; word?: string[] }[] = [
     category: 'vehicle',
     prefix: ['coolant', 'helmet', 'air filter', 'bmc', 'gasket', 'brake', 'chain lube', 'chain clean', 'engine oil', 'motul', 'castrol',
       'bike cover', 'car cover', 'tyre', 'tire', 'spark plug', 'motorcycle', 'motorbike', 'scooter', 'riding', 'dashcam', 'car charger',
-      'car perfume', 'car wash', 'microfibre car', 'kawasaki', 'jupiter', 'ntorq', 'bike insurance', 'car insurance', 'fastag'],
+      'car perfume', 'car wash', 'microfibre car', 'kawasaki', 'jupiter', 'ntorq', 'bike insurance', 'car insurance', 'fastag',
+      'radiator', 'liqui moly', 'threadlocker', 'loctite', 'wavex', 'detailing', 'wuerth', 'chain spray'],
     word: ['bike', 'car'],
   },
   {
     category: 'health',
-    prefix: ['tablet', 'capsule', 'syrup', 'medicine', 'vitamin', 'multivitamin', 'supplement', 'whey', 'protein powder', 'omega',
+    prefix: ['tablet', 'capsule', 'syrup', 'medicine', 'vitamin', 'multivitamin', 'supplement', 'whey', 'protein powder', 'omega 3', 'omega-3',
       'paracetamol', 'dolo', 'crocin', 'bandage', 'band-aid', 'antiseptic', 'thermometer', 'oximeter', 'first aid', 'ointment', 'pain relief',
+      'fungal', 'antifungal', 'clocip',
       'electral', 'ors', 'glucon', 'mask', 'sanitiser', 'sanitizer'],
   },
   // Home items whose names contain grocery words ("bottle" sits in Home, "fresh" in Groceries).
-  { category: 'home', prefix: ['freshener', 'juicer', 'water bottle', 'oil dispenser', 'tea kettle', 'butter knife', 'milk pan', 'coffee mug', 'tea cup'] },
+  {
+    category: 'home',
+    prefix: ['freshener', 'juicer', 'water bottle', 'oil dispenser', 'tea kettle', 'butter knife', 'milk pan', 'coffee mug', 'tea cup', 'wood',
+      'container', 'lock & fresh', 'lock and fresh', 'mixing bowl', 'bowl', 'stainless steel', 'straw', 'funnel', 'tray', 'sofa', 'couch',
+      'slipcover', 'shalimar', 'home centre'],
+  },
   {
     category: 'groceries',
     prefix: ['milk', 'curd', 'dahi', 'paneer', 'butter', 'cheese', 'ghee', 'bread', 'egg', 'atta', 'flour', 'maida', 'rice', 'dal',
@@ -30,7 +37,7 @@ const ITEM_SEED: { category: string; prefix: string[]; word?: string[] }[] = [
       'capsicum', 'carrot', 'cabbage', 'cauliflower', 'spinach', 'palak', 'coriander', 'mint', 'lemon', 'cucumber', 'beans', 'peas', 'mushroom',
       'banana', 'apple', 'mango', 'orange', 'grapes', 'papaya', 'watermelon', 'pomegranate', 'fruit', 'vegetable', 'chicken', 'mutton', 'fish',
       'prawn', 'protein bar', 'ritebite', 'yoghurt', 'yogurt', 'ice cream', 'frozen', 'amul', 'aashirvaad', 'tata sampann', 'fortune',
-      'nandini', 'kinley', 'bisleri', 'haldiram', 'britannia', 'parle'],
+      'nandini', 'kinley', 'bisleri', 'haldiram', 'britannia', 'parle', 'lettuce', 'iceberg', 'mayonnaise', 'mayo', 'hellmann', 'snax', 'soya'],
   },
   {
     category: 'home',
@@ -50,14 +57,16 @@ const ITEM_SEED: { category: string; prefix: string[]; word?: string[] }[] = [
       'makeup', 'kajal', 'sanitary', 'diaper', 'tshirt', 't-shirt', 'shirt', 'jeans', 'trouser', 'trackpant', 'track pant', 'shorts',
       'jacket', 'hoodie', 'sweatshirt', 'kurta', 'saree', 'dress', 'briefs', 'boxer', 'bra', 'innerwear', 'socks', 'shoe', 'sneaker',
       'slipper', 'sandal', 'flip flop', 'cap', 'wallet', 'belt', 'sunglass', 'book', 'novel', 'flower', 'bouquet', 'gift', 'ticket',
-      'membership', 'subscription', 'gym'],
+      'membership', 'subscription', 'gym', 'wella', 'loreal', "l'oreal", 'dove', 'nivea', 'mamaearth', 'minimalist', 'cetaphil', 'himalaya'],
   },
   {
     category: 'shopping',
     prefix: ['tempered', 'screen protector', 'screen guard', 'case', 'cover', 'charger', 'adapter', 'cable', 'usb', 'type c', 'type-c',
       'earphone', 'earbuds', 'headphone', 'speaker', 'power bank', 'powerbank', 'smartwatch', 'watch', 'mouse', 'keyboard', 'laptop',
       'monitor', 'phone', 'mobile', 'tablet stand', 'stand', 'tripod', 'memory card', 'pendrive', 'ssd', 'hdd', 'router', 'portronics',
-      'boat', 'oneplus', 'samsung', 'oppo', 'apple', 'iphone', 'battery', 'toy', 'stationery', 'pen', 'notebook', 'bag', 'backpack'],
+      'boat', 'oneplus', 'samsung', 'oppo', 'apple', 'iphone', 'battery', 'toy', 'stationery', 'pen', 'notebook', 'bag', 'backpack', 'mount',
+      'gopro', 'vernier', 'caliper', 'screwdriver', 'spanner', 'wrench', 'tool kit', 'karaoke', 'microphone', 'nilkin', 'nillkin', 'magnetic',
+      'magsafe', 'grip'],
   },
 ];
 

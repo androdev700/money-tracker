@@ -136,6 +136,29 @@ describe('orders → spends', () => {
   });
 });
 
+describe('order hygiene', () => {
+  it('counts a Decathlon order once though its confirmation and delivery mails carry different numbers', async () => {
+    orderEmail(f.decathlonConfirmed);
+    orderEmail(f.decathlon);
+    expect(await run()).toMatchObject({ order: 1, duplicate: 1 });
+  });
+
+  it('drops a cancelled single-item Amazon order instead of asking about it in Review', async () => {
+    orderEmail(f.amazonSingle);
+    orderEmail(f.amazonCancelled);
+    await run(new Date('2026-10-30T00:00:00'));
+    expect(orders()[0].status).toBe('dismissed');
+  });
+
+  it('keeps unmatched guesses from the local model out of Review', async () => {
+    db.prepare(`INSERT INTO emails (id, from_addr, subject, received_at, body_text, mailbox, parse_status) VALUES ('g1', 'x@shop.com', 'Receipt', '2026-06-01T10:00:00', 'Total ₹999', 'orders', 'llm')`).run();
+    db.prepare(`INSERT INTO orders (email_id, source, ordered_at, total_paise, kind, status, extracted_by) VALUES ('g1', 'shop', '2026-06-01T10:00:00', 99900, 'retail', 'unmatched', 'llm')`).run();
+    const app = await buildApp(db);
+    expect((await app.inject('/api/orders?status=unmatched')).json()).toEqual([]);
+    expect((await app.inject('/api/status')).json().unmatchedOrders).toBe(0);
+  });
+});
+
 describe('sender names', () => {
   it.each([
     ['no-reply@mailer22.actcorp.in', 'actcorp'],

@@ -35,6 +35,21 @@ describe('item categories', () => {
     ['The Flora Single Sunflower Bouquet', 'personal'],
     ['Men Gym Trackpant Convertible, Jog Fit', 'personal'],
     ['Leather Wallet for Men', 'personal'],
+    ['Prestige Omega Deluxe Granite Fla...', 'home'],
+    ['ARISTO Lock & Fresh 222 Plastic S...', 'home'],
+    ['Shri Samriddhi Enterprises Mango Wood', 'home'],
+    ['Gluman Stainless Steel Mixing Bow...', 'home'],
+    ['KiKiluxxa Glass Straws with Clean...', 'home'],
+    ['HOKIPO Chenille Sofa Couch Slipco...', 'home'],
+    ['Liqui Moly Ready Mix Radiator Coo...', 'vehicle'],
+    ['Wavex Alubright Pro Aluminium Cle...', 'vehicle'],
+    ['Loctite Threadlocker Blue 242 loc...', 'vehicle'],
+    ['Wella Professionals Fusion Intens...', 'personal'],
+    ['PRITO Nilkin® Slim Magnetic Matte...', 'shopping'],
+    ['SIDRUM J Hook Buckle Mount for Go...', 'shopping'],
+    ['Themisto TH-M61 Digital Vernier C...', 'shopping'],
+    ['nectr Iceberg Lettuce', 'groceries'],
+    ['Generic Anti Fungal Dusting Powder...', 'health'],
   ])('%s → %s', async (item, expected) => {
     expect(await cat(item)).toBe(expected);
   });

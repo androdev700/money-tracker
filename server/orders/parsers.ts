@@ -34,7 +34,11 @@ const swiggy: OrderParser = {
 
     // Food: "ORDER JOURNEY <restaurant, address> Oct 11, 5:00 PM … BILL DETAILS Dish x1 ₹297 Packaging … Paid Via … ₹254"
     const journey = text.match(/ORDER JOURNEY\s+(.+?)(?:,|\s+\d)/i)?.[1];
-    const store = journey?.replace(/\s+(?:counter|shop|outlet|unit|no\.?)$/i, '').trim() || null;
+    const store =
+      journey
+        ?.replace(/\s*[@#].*$/, '')
+        .replace(/\s+(?:counter|shop|outlet|unit|no\.?|rw\d+\+?)$/i, '')
+        .trim() || null;
     const orderedAt = monthDayTime(text.slice(text.search(/ORDER JOURNEY/i)), email.receivedAt) ?? receivedIso(email.receivedAt);
     const bill = section(text, /BILL DETAILS/i, /\b(?:Restaurant Packaging|Packaging|Platform fee|Delivery Fee|Discount|Taxes|Item Total|Paid Via|GST)\b/i);
     const items: ParsedItem[] = [...bill.matchAll(/\s*([^₹]+?)\s+x\s?(\d+)\s+₹\s?([\d,]+(?:\.\d{1,2})?)/gi)].map((m) => ({
@@ -73,6 +77,10 @@ const amazon: OrderParser = {
   source: 'amazon',
   matches: (from) => /@amazon\.in/i.test(from),
   parse(email, text) {
+    if (/^Item cancelled:/i.test(email.subject)) {
+      const orderRef = text.match(/Order #\W*([\d-]{12,})/)?.[1];
+      return orderRef ? { status: 'cancelled', source: 'amazon', orderRef } : ignored('cancellation without an order number');
+    }
     // Shipping, delivery, return, refund and survey mails repeat the order; only the confirmation creates it.
     if (!/auto-confirm@amazon\.in/i.test(email.from) || !/^Ordered:/i.test(email.subject)) return ignored('not an order confirmation');
     const orderRef = text.match(/Order #\W*([\d-]{12,})/)?.[1] ?? null;
@@ -112,7 +120,9 @@ const decathlon: OrderParser = {
     // "Shipped" mails are numbered by package, not order; Confirmed/Delivered carry the order number.
     const orderRef = email.subject.match(/Order\s+(\d{6,})\s+is\s+(?:Confirmed|Delivered)/i)?.[1];
     if (!orderRef) return ignored('not an order confirmation');
-    const list = section(text, /Order details/i, /Order value/i);
+    const list = section(text, /Order details/i, /Order value/i)
+      .replace(/Package ID\s*:\s*\d+/gi, '')
+      .replace(/Delivery Date\s*:\s*\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]+,?\s*\d{4}/gi, '');
     const items: ParsedItem[] = [...list.matchAll(/\s*(.+?)\s+Qty:\s*(\d+)\s+₹\s?([\d,]+(?:\.\d{1,2})?)/gi)].map((m) => ({
       name: m[1].trim(),
       qty: Number(m[2]),
@@ -145,10 +155,17 @@ const bookmyshow: OrderParser = {
   },
 };
 
-export const ORDER_PARSERS: OrderParser[] = [swiggy, zomato, amazon, flipkart, decathlon, bookmyshow];
+const paymentReceipts: OrderParser = {
+  source: 'receipts',
+  matches: (from) => /razorpay\.com|payu\.in|payu\.com|amazonpay\.in/i.test(from),
+  parse: () => ignored('payment receipt (read with bank alerts)'),
+};
+
+export const ORDER_PARSERS: OrderParser[] = [swiggy, zomato, amazon, flipkart, decathlon, bookmyshow, paymentReceipts];
 
 /** Worth asking the local model about: reads like a purchase confirmation and names an amount. */
 export function looksLikeOrder(subject: string, text: string): boolean {
-  if (/ship|out for delivery|delivered|dispatch|on the way|arriving|return|refund|cancel|review|feedback|otp|one-time|password|registration|survey|reward|points|account|inquiry|declined|ends on|will end|reminder/i.test(subject)) return false;
+  if (/ship|out for delivery|delivered|dispatch|on the way|arriving|return|refund|cancel|review|feedback|otp|one-time|password|registration|survey|reward|points|account|inquiry|declined|ends on|will end|reminder|required|important note/i.test(subject)) return false;
+  if (/amount due|due date|pay now|pay before|payment link/i.test(text)) return false;
   return /order|booking|receipt|invoice|confirm|purchase|payment|membership|policy|bill/i.test(subject) && /(?:₹|Rs\.?|INR)\s?\d/.test(text);
 }

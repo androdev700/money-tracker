@@ -19,7 +19,9 @@ export function orderRoutes(app: FastifyInstance, db: DB) {
 
   app.get<{ Querystring: { status?: string } }>('/api/orders', async (req) => {
     const ids = categoryIdByName(db);
-    const rows = db.prepare('SELECT * FROM orders WHERE status = ? ORDER BY ordered_at DESC LIMIT 200').all(req.query.status ?? 'unmatched') as unknown as OrderRow[];
+    const rows = db
+      .prepare(`SELECT * FROM orders WHERE status = ? AND extracted_by != 'llm' ORDER BY ordered_at DESC LIMIT 200`)
+      .all(req.query.status ?? 'unmatched') as unknown as OrderRow[];
     return rows.map((o) => {
       const list = items(o.id);
       return { ...o, items: list, suggested: describeOrder(o, list, ids) };

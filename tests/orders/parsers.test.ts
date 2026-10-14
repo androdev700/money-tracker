@@ -71,7 +71,17 @@ describe('order parsers', () => {
     expect(order(f.bookmyshow)).toMatchObject({ orderRef: 'WRPJ000', orderedAt: '2026-10-02T14:18:00', totalPaise: 48806, items: [{ name: 'Sample Movie The Conclusion', qty: 2, category: 'personal' }] });
   });
 
+  it('Decathlon confirmation: package and delivery-date noise is not an item', () => {
+    expect(order(f.decathlonConfirmed).items).toEqual([{ name: 'Men Gym Trackpant Convertible, Jog Fit, Quick Dry, Zip Pockets, 500 - Black', qty: 1, pricePaise: 99900 }]);
+  });
+
+  it('reads an Amazon cancellation as a cancellation of that order', () => {
+    expect(parseOrderEmail(f.amazonCancelled)).toMatchObject({ status: 'cancelled', source: 'amazon', orderRef: '406-0000000-0000001' });
+  });
+
   it.each([
+    ['payment receipts (read with bank alerts)', f.razorpayInOrders],
+    ['a bill that is still due', f.broadbandBill],
     ['Swiggy Dineout reminder', f.swiggyDineout],
     ['Zomato Gold renewal', f.zomatoGold],
     ['Amazon shipping update', f.amazonShipped],

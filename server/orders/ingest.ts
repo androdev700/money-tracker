@@ -1,7 +1,7 @@
 import { tx, type DB } from '../db.ts';
 import { extractOrderWithLlm } from '../llm/ollama.ts';
 import { categoriseItem } from './categorise-item.ts';
-import { receivedIso, type OrderEmail, type ParsedOrder } from './common.ts';
+import { itemKey, receivedIso, type OrderEmail, type ParsedOrder } from './common.ts';
 import { matchOrders } from './match.ts';
 import { parseOrderEmail } from './parse.ts';
 
@@ -49,6 +49,16 @@ export async function processPendingOrders(db: DB, opts: Options): Promise<Recor
   for (const e of emails) {
     const email: OrderEmail = { from: e.from_addr, subject: e.subject, receivedAt: e.received_at, body: e.body_text };
     const res = parseOrderEmail(email);
+    if (res.status === 'cancelled') {
+      // A cancelled single-item order was never paid; a partial cancellation still leaves a payment to find.
+      db.prepare(
+        `UPDATE orders SET status = 'dismissed' WHERE source = ? AND order_ref = ? AND txn_id IS NULL
+           AND (SELECT COUNT(*) FROM order_items WHERE order_id = orders.id) = 1`,
+      ).run(res.source, res.orderRef);
+      setStatus.run('ignored', res.source, 'order cancelled', e.id);
+      counts.ignored++;
+      continue;
+    }
     let order: ParsedOrder | null = res.status === 'order' ? res.order : null;
     let by: 'parser' | 'llm' = 'parser';
 
@@ -70,8 +80,22 @@ export async function processPendingOrders(db: DB, opts: Options): Promise<Recor
       continue;
     }
 
-    // Confirmation, shipped and delivered mails can all carry the same order; the first one read wins.
-    if (order.orderRef && db.prepare('SELECT 1 FROM orders WHERE source = ? AND order_ref = ?').get(order.source, order.orderRef)) {
+    // Confirmation, shipped and delivered mails can all carry the same order; the first one read wins. Shops don't
+    // always repeat the order number (Decathlon numbers shipments by package), so the same item and total within a
+    // week counts as the same order too.
+    const first = order.items[0]?.name ?? '';
+    const sameRetailOrder =
+      order.kind === 'retail' &&
+      (
+        db
+          .prepare(
+            `SELECT o.ordered_at, (SELECT name FROM order_items WHERE order_id = o.id ORDER BY id LIMIT 1) AS first
+             FROM orders o WHERE o.source = ? AND o.total_paise = ?
+               AND o.ordered_at BETWEEN strftime('%Y-%m-%dT%H:%M:%S', ?, '-7 days') AND strftime('%Y-%m-%dT%H:%M:%S', ?, '+7 days')`,
+          )
+          .all(order.source, order.totalPaise, order.orderedAt, order.orderedAt) as { first: string | null }[]
+      ).some((r) => itemKey(r.first ?? '') === itemKey(first));
+    if (sameRetailOrder || (order.orderRef && db.prepare('SELECT 1 FROM orders WHERE source = ? AND order_ref = ?').get(order.source, order.orderRef))) {
       setStatus.run('ignored', order.source, 'same order as an earlier email', e.id);
       counts.duplicate++;
       continue;
