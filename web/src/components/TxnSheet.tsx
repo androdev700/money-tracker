@@ -64,7 +64,7 @@ function Sheet({ txn, close, done }: { txn: Partial<Txn>; close: () => void; don
   const [categoryId, setCategoryId] = useState<number | null>(txn.category_id ?? null);
   const [kind, setKind] = useState<Kind>(txn.kind ?? 'spend');
   const [note, setNote] = useState(txn.note ?? '');
-  const [applyAll, setApplyAll] = useState(true);
+  const [applyAll, setApplyAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState<EmailRow | null>(null);
@@ -288,7 +288,7 @@ function Sheet({ txn, close, done }: { txn: Partial<Txn>; close: () => void; don
                 <label className="mt-1 flex items-center justify-between gap-3 rounded-2xl bg-sunken px-4 py-3 text-sm">
                   <span className="min-w-0">
                     <span className="block font-medium">Always use for “{txn.merchant}”</span>
-                    <span className="block text-xs text-muted">Past and future spends there move too</span>
+                    <span className="block text-xs text-muted">{applyAll ? 'Past and future spends there move too' : 'Off: only this spend changes'}</span>
                   </span>
                   <input type="checkbox" checked={applyAll} onChange={(e) => setApplyAll(e.target.checked)} className="peer sr-only" />
                   <span
